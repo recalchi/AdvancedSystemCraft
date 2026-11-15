@@ -38,4 +38,8 @@ No Windows com o .NET Framework 4.x e seu compilador C# de 64 bits, abra o Power
 
 O teste cria amostras próprias, verifica a correção de um atalho descartável e percorre a interface. As pastas reais do usuário são apenas examinadas no teste.
 
+## Base de conhecimento de limpeza
+
+A [base de conhecimento](docs/conhecimento-limpeza.md) reúne o que foi medido em limpezas reais: alvos classificados por risco, como mover pastas com verificação e as lacunas ainda abertas no Craft. A [rotina de execução](docs/rotina-de-execucao.md) descreve os passos de cada limpeza e o [diário](docs/diario-de-execucoes.md) registra o resultado de cada uma, para que a próxima parta do que já se aprendeu.
+
 O fluxo de cuidado manual tem como referência a documentação pública do Advanced SystemCare. A tabela acima descreve a cobertura atual da implementação. [Manual do produto de referência](https://www.iobit.com/product-manuals/asc-help/)

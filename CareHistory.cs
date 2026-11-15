@@ -9,7 +9,16 @@ using System.Windows.Forms;
 internal sealed class CareHistory {
     readonly string root;
     internal string LastFile { get; private set; }
+    long freeAtScan=-1;
     internal CareHistory(string folder){root=folder;}
+    static long SystemFree(out string drive){
+        drive=null;
+        try{
+            var info=new DriveInfo(Path.GetPathRoot(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)));
+            drive=info.Name.TrimEnd('\\');return info.AvailableFreeSpace;
+        }catch{return -1;}
+    }
+    static string Gb(long bytes){return (bytes/1073741824.0).ToString("0.00")+" GB";}
     internal void SaveScan(string mode,Report report,string diagnostics,long duration){
         LastFile=null;Directory.CreateDirectory(root);
         var stamp=DateTime.Now;
@@ -21,6 +30,8 @@ internal sealed class CareHistory {
                 writer.WriteLine("Advanced System Craft · "+stamp.ToString("G"));
                 writer.WriteLine("Modo "+mode);
                 writer.WriteLine("{0} arquivos examinados · {1} para revisar · {2} inacessíveis · {3} ms",report.Examined,report.Items.Count,report.Skipped,duration);
+                string drive;freeAtScan=SystemFree(out drive);
+                if(freeAtScan>=0)writer.WriteLine("Livre em "+drive+" antes da correção: "+Gb(freeAtScan));
                 writer.WriteLine(diagnostics);
                 foreach(var item in report.Items)writer.WriteLine("Encontrado\t{0}\t{1} bytes\t{2}",item.Category,item.Size,item.Path);
             }
@@ -32,6 +43,11 @@ internal sealed class CareHistory {
         using(var writer=new StreamWriter(LastFile,true,new UTF8Encoding(true))){
             writer.WriteLine();writer.WriteLine("Correção · "+DateTime.Now.ToString("G"));
             foreach(var line in results)writer.WriteLine(line);
+            string drive;var now=SystemFree(out drive);
+            if(now>=0&&freeAtScan>=0){
+                var delta=now-freeAtScan;
+                writer.WriteLine("Livre em "+drive+" depois da correção: "+Gb(now)+" (variação "+(delta<0?"-":"+")+Gb(Math.Abs(delta))+"). A Lixeira só libera espaço ao ser esvaziada.");
+            }
         }
     }
     internal FileInfo[] Reports(){

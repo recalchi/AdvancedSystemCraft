@@ -26,15 +26,7 @@ internal static class DiskCommands {
         };
     }
     internal static string Outcome(DiskAction action,int code){
-        if(action==DiskAction.Check || action==DiskAction.Repair){
-            switch(code){
-                case 0:return "CHKDSK concluiu sem encontrar erros.";
-                case 1:return "CHKDSK encontrou e corrigiu erros.";
-                case 2:return "CHKDSK realizou limpeza ou encontrou uma limpeza pendente.";
-                case 3:return "CHKDSK não conseguiu verificar ou corrigir os erros deste volume.";
-            }
-        }else if(code==0)return action==DiskAction.Optimize?"O Windows concluiu a otimização.":"O Windows concluiu a análise.";
-        return "Consulte a saída da ferramenta do Windows.";
+        return "A ferramenta do Windows terminou com código " + code + ". Consulte a janela dela para o diagnóstico e as ações agendadas.";
     }
 }
 
@@ -50,9 +42,12 @@ internal sealed partial class CraftWindow {
     }
     async Task RunStorage(string root,DiskAction action){
         if(storageBusy || root==null)return;
-        if(action==DiskAction.Repair && MessageBox.Show(this,"Solicitar ao Windows a correção do sistema de arquivos de "+root+"? Se o volume estiver em uso, o CHKDSK pode oferecer agendamento para a próxima inicialização.","Reparar volume",MessageBoxButtons.YesNo,MessageBoxIcon.Question,MessageBoxDefaultButton.Button2)!=DialogResult.Yes)return;
         var command=DiskCommands.For(root,action);
-        storageBusy=true;storageMessage="Em execução: "+Path.GetFileName(command.FileName)+" "+command.Arguments;UpdateStorageView();
+        storageBusy=true;
+        storageMessage=action==DiskAction.Repair
+            ? "Solicitando ao Windows a correção de " + root + ". Se o volume estiver em uso, o CHKDSK poderá oferecer agendamento para a próxima inicialização."
+            : "Em execução: "+Path.GetFileName(command.FileName)+" "+command.Arguments;
+        UpdateStorageView();
         try{
             using(var process=Process.Start(command)){
                 await Task.Run(()=>process.WaitForExit());
@@ -76,6 +71,6 @@ internal sealed partial class CraftWindow {
         ActionButton(storageButtons,"Otimizar unidade",async(s,e)=>await RunStorage(choice.SelectedItem as string,DiskAction.Optimize),245);
         storageStatus=new Label{MaximumSize=new Size(540,0),AutoSize=true};
         page.Controls.Add(storageStatus);UpdateStorageView();
-        page.Controls.Add(new Label{AutoSize=true,MaximumSize=new Size(540,0),Text="O Windows abre a ferramenta em uma janela própria e solicita acesso de administrador. A otimização usa a operação apropriada ao tipo de mídia."});
+        page.Controls.Add(new Label{AutoSize=true,MaximumSize=new Size(540,0),Text="O Windows abre a ferramenta em uma janela própria e solicita acesso de administrador. A otimização usa a operação apropriada ao tipo de mídia. Reparar pode ser agendado para a próxima inicialização se o volume estiver em uso."});
     }
 }

@@ -10,7 +10,10 @@ using System.Diagnostics;
 using System.Reflection;
 [assembly: AssemblyTitle("Advanced System Craft")]
 [assembly: AssemblyProduct("Advanced System Craft")]
-[assembly: AssemblyVersion("0.6.0.0")]
+[assembly: AssemblyCompany("Renan Recalde")]
+[assembly: AssemblyCopyright("Copyright © 2026 Renan Recalde")]
+[assembly: AssemblyDescription("Ferramenta local de manutenção para Windows.")]
+[assembly: AssemblyVersion("0.6.2.0")]
 
 internal sealed class ScanButton : Button {
     public ScanButton() {

@@ -1,8 +1,8 @@
 # Advanced System Craft
 
-Aplicativo independente de manutenção para Windows em português. Selecione as categorias, execute uma verificação e revise os arquivos antes de enviá-los à Lixeira. A versão 0.6.0 usa o Windows para o diagnóstico local e o catálogo WinGet para consultas de software, sem anúncios ou telemetria.
+Aplicativo independente de manutenção para Windows em português. Selecione as categorias, execute uma verificação e revise os arquivos antes de enviá-los à Lixeira. A versão 0.6.2 usa o Windows para o diagnóstico local e o catálogo WinGet para consultas de software, sem anúncios ou telemetria.
 
-**[Baixar para Windows](https://github.com/recalchi/AdvancedSystemCraft/releases/tag/v0.6.0)**
+**[Baixar para Windows](https://github.com/recalchi/AdvancedSystemCraft/releases/tag/v0.6.2)**
 
 ![Tela de cuidado do Advanced System Craft](docs/cuidado.png)
 
@@ -17,6 +17,7 @@ Aplicativo independente de manutenção para Windows em português. Selecione as
 | Inicialização | Permite pausar e restaurar entradas Run do usuário, preservando o comando e seu tipo. Entradas do sistema e pastas de inicialização também aparecem para consulta. A mudança se aplica aos próximos logons. |
 | Desempenho | Atualiza CPU, RAM e os oito processos com maior memória residente a cada dois segundos enquanto a tela está aberta. Mostra também a capacidade e o espaço livre dos discos fixos. |
 | Aceleração | Lista os planos de energia instalados, aplica o plano escolhido e permite desfazer a última troca efetuada pelo Craft. |
+| Discos | Solicita ao CHKDSK verificar ou reparar volumes e ao Windows analisar ou otimizar a unidade. A reparação pode ser agendada pelo Windows para a próxima inicialização. |
 | Ferramentas | Abre o Monitor de Recursos, o Gerenciador de Tarefas e as configurações de inicialização. |
 
 ## O selo PRO
@@ -32,7 +33,7 @@ No Windows com o .NET Framework 4.x e seu compilador C# de 64 bits, abra o Power
 ~~~powershell
 .\build.ps1
 .\test.ps1
-& '.\build\v0.6.0\Advanced System Craft.exe'
+& '.\build\v0.6.2\Advanced System Craft.exe'
 ~~~
 
 O teste cria amostras próprias, verifica a correção de um atalho descartável e percorre a interface. As pastas reais do usuário são apenas examinadas no teste.

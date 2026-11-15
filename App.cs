@@ -10,7 +10,7 @@ using System.Diagnostics;
 using System.Reflection;
 [assembly: AssemblyTitle("Advanced System Craft")]
 [assembly: AssemblyProduct("Advanced System Craft")]
-[assembly: AssemblyVersion("0.5.0.0")]
+[assembly: AssemblyVersion("0.6.0.0")]
 
 internal sealed class ScanButton : Button {
     public ScanButton() {
@@ -67,7 +67,7 @@ internal sealed partial class CraftWindow : Form {
         menu.Padding=new Padding(12,24,8,0); menu.BackColor=Color.FromArgb(15,23,38);
         var brand=new Label {Text="Advanced\nSystem Craft", Size=new Size(163,88), Font=new Font(Font.FontFamily,16,FontStyle.Bold)};
         menu.Controls.Add(brand);
-        AddNav("Cuidado", ShowCare);AddNav("Histórico",ShowHistory); AddNav("Proteção", ShowProtection); AddNav("Software", ShowSoftware); AddNav("Inicialização", ShowStartup); AddNav("Desempenho", ShowPerformance); AddNav("Discos",ShowStorage);AddNav("Windows Update",ShowWindowsPatches); AddNav("Ferramentas", ShowTools); AddNav("Funções Pro", ShowPremium);
+        AddNav("Cuidado", ShowCare);AddNav("Histórico",ShowHistory); AddNav("Proteção", ShowProtection); AddNav("Software", ShowSoftware); AddNav("Inicialização", ShowStartup); AddNav("Desempenho", ShowPerformance); AddNav("Aceleração",ShowAcceleration); AddNav("Discos",ShowStorage);AddNav("Windows Update",ShowWindowsPatches); AddNav("Ferramentas", ShowTools); AddNav("Funções Pro", ShowPremium);
         body.Dock=DockStyle.Fill; Controls.Add(body); Controls.Add(menu);
         care.Dock=DockStyle.Fill; care.Padding=new Padding(22);
         var layout=careLayout;layout.Dock=DockStyle.Fill;layout.ColumnCount=1;layout.RowCount=4;

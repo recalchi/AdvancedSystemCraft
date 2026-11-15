@@ -1,14 +1,14 @@
 # Advanced System Craft
 
-Aplicativo independente de manutenção para Windows em português. Selecione as categorias, execute uma verificação e revise os arquivos antes de enviá-los à Lixeira. A versão 0.4.0 usa o Windows para o diagnóstico local e o catálogo WinGet para consultas de software, sem instalação, anúncios ou telemetria.
+Aplicativo independente de manutenção para Windows em português. Selecione as categorias, execute uma verificação e revise os arquivos antes de enviá-los à Lixeira. A versão 0.6.0 usa o Windows para o diagnóstico local e o catálogo WinGet para consultas de software, sem anúncios ou telemetria.
 
-**[Baixar para Windows](https://github.com/recalchi/AdvancedSystemCraft/releases/tag/v0.4.0)**
+**[Baixar para Windows](https://github.com/recalchi/AdvancedSystemCraft/releases/tag/v0.6.0)**
 
 ![Tela de cuidado do Advanced System Craft](docs/cuidado.png)
 
 | Área | Funções desta versão |
 | --- | --- |
-| Cuidado | Verifica arquivos .tmp com mais de sete dias na raiz da pasta temporária do usuário e atalhos .lnk com destino ausente em disco local na raiz da Área de Trabalho. |
+| Cuidado | Verifica arquivos .tmp com mais de sete dias na pasta temporária do usuário e em suas subpastas e atalhos .lnk com destino ausente em disco local na raiz da Área de Trabalho. |
 | Privacidade | Identifica entradas de cache de código nos perfis Default e Profile N de Chrome e Edge fechados. A seleção é opcional. |
 | Proteção e hardware | Consulta o firewall por perfil, o antivírus registrado, o estado dos discos físicos e o sinalizador de verificação pendente dos volumes. |
 | Software | Consulta o catálogo WinGet. Exibe as versões reportadas e permite abrir o instalador interativo para um ID exato. Após consultar as atualizações, o botão Atualizar todos permite iniciar um lote interativo. |
@@ -16,6 +16,7 @@ Aplicativo independente de manutenção para Windows em português. Selecione as
 | Correção | Mostra caminho e tamanho, revalida cada item selecionado e usa a Lixeira do Windows. Falhas aparecem na lista. |
 | Inicialização | Permite pausar e restaurar entradas Run do usuário, preservando o comando e seu tipo. Entradas do sistema e pastas de inicialização também aparecem para consulta. A mudança se aplica aos próximos logons. |
 | Desempenho | Atualiza CPU, RAM e os oito processos com maior memória residente a cada dois segundos enquanto a tela está aberta. Mostra também a capacidade e o espaço livre dos discos fixos. |
+| Aceleração | Lista os planos de energia instalados, aplica o plano escolhido e permite desfazer a última troca efetuada pelo Craft. |
 | Ferramentas | Abre o Monitor de Recursos, o Gerenciador de Tarefas e as configurações de inicialização. |
 
 ## O selo PRO
@@ -31,7 +32,7 @@ No Windows com o .NET Framework 4.x e seu compilador C# de 64 bits, abra o Power
 ~~~powershell
 .\build.ps1
 .\test.ps1
-& '.\build\v0.4.0\Advanced System Craft.exe'
+& '.\build\v0.6.0\Advanced System Craft.exe'
 ~~~
 
 O teste cria amostras próprias, verifica a correção de um atalho descartável e percorre a interface. As pastas reais do usuário são apenas examinadas no teste.

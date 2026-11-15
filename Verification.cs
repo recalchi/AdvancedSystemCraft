@@ -37,6 +37,26 @@ class Verification {
         }
         Microsoft.Win32.Registry.CurrentUser.DeleteSubKey(fixture);
     }
+    static void VerifyPowerPlans() {
+        var plans = PowerPlans.Installed();
+        Check(plans.Count > 0 && plans.ContainsKey(PowerPlans.Active()), "enumera o plano de energia ativo");
+        string fixture = @"Software\CraftPowerVerification-" + Guid.NewGuid().ToString("N");
+        Guid first = Guid.NewGuid(), second = Guid.NewGuid(), third = Guid.NewGuid();
+        Guid current = first;
+        using (var key = Microsoft.Win32.Registry.CurrentUser.CreateSubKey(fixture)) {
+            try {
+                PowerChange.Apply(key, first, second, () => current, value => current = value);
+                Check(current == second && PowerChange.Read(key).Before == first, "registra a troca de plano antes de aplicar");
+                current = third;
+                try { PowerChange.Undo(key, () => current, value => current = value); throw new Exception("mudança externa ignorada"); }
+                catch (InvalidOperationException) { }
+                Check(current == third && PowerChange.Read(key) != null, "preserva mudança externa de plano");
+                current = second;
+                PowerChange.Undo(key, () => current, value => current = value);
+                Check(current == first && PowerChange.Read(key) == null, "restaura o plano anterior");
+            } finally { Microsoft.Win32.Registry.CurrentUser.DeleteSubKey(fixture, false); }
+        }
+    }
     [STAThread] static void Main(string[] args) {
         string dir=Directory.CreateDirectory(Path.Combine(Path.GetTempPath(),"craft-test-"+Guid.NewGuid())).FullName;
         string temp=Path.Combine(dir,"sample.tmp"), keep=Path.Combine(dir,"recent.tmp"), link=Path.Combine(dir,"missing.lnk");
@@ -76,6 +96,7 @@ class Verification {
             Console.WriteLine("Leitura local: "+real.Examined+" examinados; "+real.Items.Count+" encontrados; "+real.Skipped+" inacessíveis.");
             Console.WriteLine("Varredura de arquivos concluída em "+clock.ElapsedMilliseconds+" ms.");
             VerifyStartup();
+            VerifyPowerPlans();
             var protection=WindowsHealth.Protection();
             Console.WriteLine(protection);
             Check(protection.Length>0,"diagnóstico de proteção");

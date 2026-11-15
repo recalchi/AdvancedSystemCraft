@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: AssemblyCompany("Renan Recalde")]
 [assembly: AssemblyCopyright("Copyright © 2026 Renan Recalde")]
 [assembly: AssemblyDescription("Ferramenta local de manutenção para Windows.")]
-[assembly: AssemblyVersion("0.6.3.0")]
+[assembly: AssemblyVersion("0.6.4.0")]
 
 internal sealed class ScanButton : Button {
     public ScanButton() {

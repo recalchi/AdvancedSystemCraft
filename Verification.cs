@@ -168,6 +168,10 @@ class Verification {
                 var ram=(Label)window.Controls.Find("ram-usage",true).Single();
                 var processes=(ListView)window.Controls.Find("ram-processes",true).Single();
                 Check(cpu.Text.Contains("%") && ram.Text.Contains("GiB") && processes.Items.Count>0,"monitor real de CPU, RAM e processos");
+                var trim=Find<Button>(window,"Liberar memória do processo");
+                Check(!trim.Enabled,"limpeza de memória exige seleção");
+                processes.Items[0].Selected=true;Application.DoEvents();
+                Check(trim.Enabled,"limpeza de memória pode ser solicitada para o processo selecionado");
                 Console.WriteLine(cpu.Text+" · "+ram.Text);
                 Check(ResourceSample.CpuPercent(new ResourceSample{Total=100,Idle=50},new ResourceSample{Total=200,Idle=75})==75,"cálculo desconta tempo ocioso");
                 Check(!ResourceSample.CpuPercent(null,new ResourceSample()).HasValue,"primeira amostra sem percentual");

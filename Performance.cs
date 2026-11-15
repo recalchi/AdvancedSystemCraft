@@ -46,20 +46,59 @@ internal sealed class ResourceSample {
     }
 }
 
+internal sealed class MemoryTrimResult {
+    internal int ProcessId;
+    internal long Before, After;
+    internal string Error;
+}
+
+internal static class MemoryCare {
+    [DllImport("psapi.dll", SetLastError=true)]
+    static extern bool EmptyWorkingSet(IntPtr process);
+
+    internal static MemoryTrimResult Trim(Process process) {
+        var result=new MemoryTrimResult { ProcessId=process.Id };
+        try {
+            if(process.Id==0 || process.SessionId!=Process.GetCurrentProcess().SessionId)
+                throw new InvalidOperationException("Selecione um processo da sua sessão.");
+            result.Before=process.WorkingSet64;
+            if(!EmptyWorkingSet(process.Handle)) throw new Win32Exception(Marshal.GetLastWin32Error());
+            process.Refresh();result.After=process.WorkingSet64;
+        } catch(Exception error) { result.Error=error.Message; }
+        return result;
+    }
+}
+
 internal sealed partial class CraftWindow {
     void AddResourceMonitor(FlowLayoutPanel page) {
         var cpu=new Label{Name="cpu-usage",AutoSize=true,Text="CPU   medindo…"};
         var memory=new Label{Name="ram-usage",AutoSize=true};
         page.Controls.Add(cpu);page.Controls.Add(memory);
         page.Controls.Add(new Label{AutoSize=true,Text="Processos com maior memória residente",Margin=new Padding(3,12,3,3)});
-        var list=new ListView{Name="ram-processes",Width=490,Height=185,View=View.Details,FullRowSelect=true,
+        var list=new ListView{Name="ram-processes",Width=490,Height=185,View=View.Details,FullRowSelect=true,MultiSelect=false,HideSelection=false,
             BackColor=surface,ForeColor=Color.White};
         list.Columns.Add("Processo",245);list.Columns.Add("PID",85);list.Columns.Add("Memória",135);
         page.Controls.Add(list);
+        var trimStatus=new Label{Name="ram-trim-status",AutoSize=true,MaximumSize=new Size(520,0),Text="Selecione um processo da sua sessão para solicitar ao Windows a liberação de páginas de memória residentes."};
+        Func<Task> refresh=null;
+        Button trim=null;
+        trim=ActionButton(page,"Liberar memória do processo",async (s,e)=>{
+            if(list.SelectedItems.Count!=1)return;
+            var pid=Int32.Parse(list.SelectedItems[0].SubItems[1].Text);
+            trim.Enabled=false;trimStatus.Text="Solicitando ao Windows…";
+            var result=await Task.Run(()=>{try{using(var process=Process.GetProcessById(pid))return MemoryCare.Trim(process);}catch(Exception error){return new MemoryTrimResult{ProcessId=pid,Error=error.Message};}});
+            if(!page.IsDisposed){
+                trimStatus.Text=result.Error!=null?"Não foi possível liberar memória: "+result.Error:
+                    String.Format("Processo {0}: {1:N1} MiB antes · {2:N1} MiB depois.",result.ProcessId,result.Before/1048576d,result.After/1048576d);
+                await refresh();
+            }
+        },240);
+        trim.Enabled=false;page.Controls.Add(trim);page.Controls.Add(trimStatus);
+        list.SelectedIndexChanged+=(s,e)=>trim.Enabled=list.SelectedItems.Count==1;
         var timer=new System.Windows.Forms.Timer{Interval=1};
         page.Disposed+=(s,e)=>timer.Dispose();
         ResourceSample previous=null;
-        Func<Task> refresh=async ()=>{
+        refresh=async ()=>{
             timer.Stop();
             try {
                 var sample=await Task.Run(()=>ResourceSample.Read());

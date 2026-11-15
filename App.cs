@@ -10,7 +10,7 @@ using System.Diagnostics;
 using System.Reflection;
 [assembly: AssemblyTitle("Advanced System Craft")]
 [assembly: AssemblyProduct("Advanced System Craft")]
-[assembly: AssemblyVersion("0.1.0.0")]
+[assembly: AssemblyVersion("0.2.0.0")]
 
 internal sealed class ScanButton : Button {
     public ScanButton() {
@@ -29,12 +29,13 @@ internal sealed class ScanButton : Button {
             TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
     }
 }
-internal sealed class CraftWindow : Form {
+internal sealed partial class CraftWindow : Form {
     readonly Color surface=Color.FromArgb(22,32,49);
     readonly FlowLayoutPanel menu=new FlowLayoutPanel();
     readonly Panel body=new Panel();
     readonly Panel care=new Panel();
-    readonly CheckBox junk=new CheckBox(), shortcuts=new CheckBox();
+    readonly CheckBox junk=new CheckBox(), shortcuts=new CheckBox(), protection=new CheckBox(), hardware=new CheckBox(), privacy=new CheckBox(), volumes=new CheckBox();
+    readonly TextBox diagnostic=new TextBox();
     readonly ScanButton scan=new ScanButton();
     readonly ListView list=new ListView();
     readonly Label status=new Label();
@@ -50,25 +51,36 @@ internal sealed class CraftWindow : Form {
         menu.Padding=new Padding(12,24,8,0); menu.BackColor=Color.FromArgb(15,23,38);
         var brand=new Label {Text="Advanced\nSystem Craft", Size=new Size(163,88), Font=new Font(Font.FontFamily,16,FontStyle.Bold)};
         menu.Controls.Add(brand);
-        AddNav("Cuidado", ShowCare); AddNav("Inicialização", ShowStartup); AddNav("Desempenho", ShowPerformance); AddNav("Ferramentas", ShowTools);
+        AddNav("Cuidado", ShowCare); AddNav("Proteção", ShowProtection); AddNav("Software", ShowSoftware); AddNav("Inicialização", ShowStartup); AddNav("Desempenho", ShowPerformance); AddNav("Ferramentas", ShowTools);
         body.Dock=DockStyle.Fill; Controls.Add(body); Controls.Add(menu);
         care.Dock=DockStyle.Fill; care.Padding=new Padding(22);
         var layout=new TableLayoutPanel {Dock=DockStyle.Fill,ColumnCount=1,RowCount=4};
-        layout.RowStyles.Add(new RowStyle(SizeType.Absolute,54)); layout.RowStyles.Add(new RowStyle(SizeType.Absolute,174));
+        layout.RowStyles.Add(new RowStyle(SizeType.Absolute,54)); layout.RowStyles.Add(new RowStyle(SizeType.Absolute,215));
         layout.RowStyles.Add(new RowStyle(SizeType.Percent,100)); layout.RowStyles.Add(new RowStyle(SizeType.Absolute,62));
         layout.Controls.Add(Title("Cuidado  /  Modo manual"),0,0);
         var options=new FlowLayoutPanel {Dock=DockStyle.Fill,WrapContents=false};
         scan.Font=new Font(Font.FontFamily,16,FontStyle.Bold); scan.Click+=async (s,e)=>await RunScan();
         options.Controls.Add(scan);
-        var checks=new FlowLayoutPanel {FlowDirection=FlowDirection.TopDown,Padding=new Padding(15,36,0,0),Size=new Size(375,145)};
+        var checks=new FlowLayoutPanel {FlowDirection=FlowDirection.TopDown,Padding=new Padding(15,2,0,0),Size=new Size(420,208)};
         SetupCheck(checks,junk,"Temporários .tmp com mais de 7 dias"); SetupCheck(checks,shortcuts,"Atalhos inválidos da Área de Trabalho");
+        SetupCheck(checks,protection,"Proteção antivírus e firewall");
+        SetupCheck(checks,hardware,"Saúde dos discos físicos");
+        SetupCheck(checks,privacy,"Cache de código do Chrome e do Edge"); privacy.Checked=false;
+        SetupCheck(checks,volumes,"Verificação pendente nos volumes");
+        var selectAll=new Button{Text="Selecionar tudo",AutoSize=true};
+        Style(selectAll,"Selecionar tudo");
+        selectAll.Click+=(s,e)=>{if(operation==null && !repairing)junk.Checked=shortcuts.Checked=protection.Checked=hardware.Checked=volumes.Checked=privacy.Checked=true;};
+        checks.Controls.Add(selectAll);
         options.Controls.Add(checks); layout.Controls.Add(options,0,1);
         list.Dock=DockStyle.Fill; list.View=View.Details; list.CheckBoxes=true; list.FullRowSelect=true;
         list.BackColor=Color.FromArgb(28,42,59); list.ForeColor=Color.White; list.BorderStyle=BorderStyle.None;
         list.Columns.Add("Categoria",148); list.Columns.Add("Arquivo",385); list.Columns.Add("Tamanho",96);
         list.ShowItemToolTips=true;
         list.ItemChecked+=(s,e)=>BeginInvoke((Action)UpdateFix);
-        list.Visible=false; layout.Controls.Add(list,0,2);
+        var results=new Panel{Dock=DockStyle.Fill};
+        diagnostic.Multiline=true;diagnostic.ReadOnly=true;diagnostic.ScrollBars=ScrollBars.Vertical;diagnostic.Dock=DockStyle.Bottom;
+        diagnostic.Height=105;diagnostic.BackColor=surface;diagnostic.ForeColor=Color.White;diagnostic.Visible=false;
+        list.Visible=false;results.Controls.Add(list);results.Controls.Add(diagnostic);layout.Controls.Add(results,0,2);
         var foot=new Panel {Dock=DockStyle.Fill,Padding=new Padding(0,8,0,4)};
         status.Dock=DockStyle.Fill;status.TextAlign=ContentAlignment.MiddleLeft;status.Text="Selecione as categorias e clique em Verificar.";
         Style(fix,"Corrigir seleção");fix.Dock=DockStyle.Right;fix.Width=150;fix.Enabled=false;
@@ -96,23 +108,35 @@ internal sealed class CraftWindow : Form {
     void UpdateFix(){fix.Enabled=operation==null && !repairing && list.CheckedItems.Count>0;}
     async Task RunScan() {
         if(operation!=null){operation.Cancel();return;}
-        if(!junk.Checked && !shortcuts.Checked){status.Text="Selecione ao menos uma categoria.";return;}
-        bool files=junk.Checked,links=shortcuts.Checked;
+        if(!junk.Checked && !shortcuts.Checked && !protection.Checked && !hardware.Checked && !privacy.Checked && !volumes.Checked){status.Text="Selecione ao menos uma categoria.";return;}
+        bool files=junk.Checked,links=shortcuts.Checked, security=protection.Checked, disks=hardware.Checked, browsers=privacy.Checked, examineVolumes=volumes.Checked;
         operation=new CancellationTokenSource();var token=operation.Token;
-        list.Visible=false; list.Items.Clear(); fix.Enabled=false; junk.Enabled=shortcuts.Enabled=false; scan.Text="Parar"; status.Text="Verificando arquivos locais…";
+        list.Visible=false; list.Items.Clear(); fix.Enabled=false; diagnostic.Visible=false; junk.Enabled=shortcuts.Enabled=hardware.Enabled=volumes.Enabled=privacy.Enabled=protection.Enabled=false; scan.Text="Parar"; status.Text="Verificando arquivos locais…";
         try {
-            var report=await Task.Run(()=>Engine.Scan(Engine.Temp,Engine.Desktop,files,links,token));
+            var timer=Stopwatch.StartNew(); var report=await Task.Run(()=>{var findings=Engine.Scan(Engine.Temp,Engine.Desktop,files,links,token);if(browsers)Engine.ScanBrowserCaches(findings,token);return findings;});
+            var details=await Task.Run(()=>{
+                var sections=new System.Collections.Generic.List<string>(report.Notices);
+                token.ThrowIfCancellationRequested();
+                if(security)sections.Add(WindowsHealth.Protection());
+                token.ThrowIfCancellationRequested();
+                if(disks)sections.Add(WindowsHealth.DiskHealth());
+                token.ThrowIfCancellationRequested();
+                if(examineVolumes)sections.Add(WindowsHealth.VolumeStatus());
+                token.ThrowIfCancellationRequested();
+                return String.Join(Environment.NewLine,sections);
+            });
             if(IsDisposed)return;
+            diagnostic.Text=details;diagnostic.Visible=details.Length>0;
             list.BeginUpdate();
             foreach(var item in report.Items) {
                 var row=new ListViewItem(new[]{item.Category,item.Path,item.Size.ToString("N0")+" B"});
                 row.Tag=item;row.ToolTipText=item.Target==null?item.Path:"Destino ausente: "+item.Target;
                 list.Items.Add(row);
             }
-            list.EndUpdate();list.Visible=report.Items.Count>0;status.Text=String.Format("{0} examinados   ·   {1} para revisar   ·   {2} inacessíveis",report.Examined,report.Items.Count,report.Skipped);
+            list.EndUpdate();list.Visible=report.Items.Count>0;status.Text=String.Format("{0} examinados   ·   {1} para revisar   ·   {2} inacessíveis   ·   {3} ms",report.Examined,report.Items.Count,report.Skipped,timer.ElapsedMilliseconds);
         } catch(OperationCanceledException){if(!IsDisposed)status.Text="Verificação cancelada.";}
           catch(Exception ex){if(!IsDisposed)status.Text=ex.Message;}
-        finally {operation.Dispose();operation=null;if(!IsDisposed){junk.Enabled=shortcuts.Enabled=true; scan.Text="Verificar";UpdateFix();}}
+        finally {operation.Dispose();operation=null;if(!IsDisposed){junk.Enabled=shortcuts.Enabled=hardware.Enabled=volumes.Enabled=privacy.Enabled=protection.Enabled=true; scan.Text="Verificar";UpdateFix();}}
     }
     async Task Repair(){
         var selected=list.CheckedItems.Cast<ListViewItem>().ToArray();

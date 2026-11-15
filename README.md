@@ -1,14 +1,17 @@
 # Advanced System Craft
 
-Aplicativo independente de manutenção para Windows em português. Selecione as categorias, execute uma verificação e revise os arquivos antes de enviá-los à Lixeira. A versão 0.1.0 funciona localmente, sem instalação, anúncios ou telemetria.
+Aplicativo independente de manutenção para Windows em português. Selecione as categorias, execute uma verificação e revise os arquivos antes de enviá-los à Lixeira. A versão 0.2.0 usa o Windows para o diagnóstico local e o catálogo WinGet para consultas de software, sem instalação, anúncios ou telemetria.
 
-**[Baixar para Windows](https://github.com/recalchi/AdvancedSystemCraft/releases/tag/v0.1.0)**
+**[Baixar para Windows](https://github.com/recalchi/AdvancedSystemCraft/releases/tag/v0.2.0)**
 
 ![Tela de cuidado do Advanced System Craft](docs/cuidado.png)
 
 | Área | Funções desta versão |
 | --- | --- |
 | Cuidado | Verifica arquivos .tmp com mais de sete dias na raiz da pasta temporária do usuário e atalhos .lnk com destino ausente em disco local na raiz da Área de Trabalho. |
+| Privacidade | Identifica entradas de cache de código nos perfis Default e Profile N de Chrome e Edge fechados. A seleção é opcional. |
+| Proteção e hardware | Consulta o firewall por perfil, o antivírus registrado, o estado dos discos físicos e o sinalizador de verificação pendente dos volumes. |
+| Software | Consulta o catálogo WinGet. Exibe as versões reportadas e permite abrir o instalador interativo para um ID exato. |
 | Correção | Mostra caminho e tamanho, revalida cada item selecionado e usa a Lixeira do Windows. Falhas aparecem na lista. |
 | Inicialização | Lista entradas das chaves Run e das pastas de inicialização do usuário e do computador. Abre as configurações do Windows para gerenciamento. |
 | Desempenho | Mostra capacidade e espaço livre dos discos fixos. |
@@ -21,7 +24,7 @@ No Windows com o .NET Framework 4.x e seu compilador C# de 64 bits, abra o Power
 ~~~powershell
 .\build.ps1
 .\test.ps1
-& '.\build\Advanced System Craft.exe'
+& '.\build\v0.2.0\Advanced System Craft.exe'
 ~~~
 
 O teste cria amostras próprias, verifica a correção de um atalho descartável e percorre a interface. As pastas reais do usuário são apenas examinadas no teste.

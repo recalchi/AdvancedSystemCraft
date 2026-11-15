@@ -51,7 +51,7 @@ internal sealed partial class CraftWindow : Form {
         menu.Padding=new Padding(12,24,8,0); menu.BackColor=Color.FromArgb(15,23,38);
         var brand=new Label {Text="Advanced\nSystem Craft", Size=new Size(163,88), Font=new Font(Font.FontFamily,16,FontStyle.Bold)};
         menu.Controls.Add(brand);
-        AddNav("Cuidado", ShowCare); AddNav("Proteção", ShowProtection); AddNav("Software", ShowSoftware); AddNav("Inicialização", ShowStartup); AddNav("Desempenho", ShowPerformance); AddNav("Ferramentas", ShowTools);
+        AddNav("Cuidado", ShowCare); AddNav("Proteção", ShowProtection); AddNav("Software", ShowSoftware); AddNav("Inicialização", ShowStartup); AddNav("Desempenho", ShowPerformance); AddNav("Ferramentas", ShowTools); AddNav("Funções Pro", ShowPremium);
         body.Dock=DockStyle.Fill; Controls.Add(body); Controls.Add(menu);
         care.Dock=DockStyle.Fill; care.Padding=new Padding(22);
         var layout=new TableLayoutPanel {Dock=DockStyle.Fill,ColumnCount=1,RowCount=4};

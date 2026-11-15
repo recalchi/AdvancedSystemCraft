@@ -9,6 +9,9 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
+internal sealed class CatalogResult {
+    public string Text; public bool Success;
+}
 internal static class WindowsHealth {
     public static string Protection(){
         var lines=new List<string>();
@@ -63,7 +66,7 @@ internal static class WindowsHealth {
     static string WingetPath(){
         return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),@"Microsoft\WindowsApps\winget.exe");
     }
-    public static async Task<string> ListSoftware(bool updates){
+    public static async Task<CatalogResult> ListSoftware(bool updates){
         var args="list --source winget --disable-interactivity"+(updates?" --upgrade-available":"");
         var info=new ProcessStartInfo(WingetPath(),args){CreateNoWindow=true,UseShellExecute=false,
             RedirectStandardOutput=true,RedirectStandardError=true,StandardOutputEncoding=Encoding.UTF8,StandardErrorEncoding=Encoding.UTF8};
@@ -72,9 +75,12 @@ internal static class WindowsHealth {
             await Task.WhenAll(output,errors).ConfigureAwait(false);
             process.WaitForExit();
             var result=(output.Result+Environment.NewLine+errors.Result).Trim();
-            if(process.ExitCode!=0)return "WinGet 0x"+process.ExitCode.ToString("X8")+Environment.NewLine+result;
-            return result;
+            if(process.ExitCode!=0)result="WinGet 0x"+process.ExitCode.ToString("X8")+Environment.NewLine+result;
+            return new CatalogResult{Text=result,Success=process.ExitCode==0};
         }
+    }
+    public static ProcessStartInfo UpdateAllCommand(){
+        return new ProcessStartInfo(WingetPath(),"upgrade --source winget --all --interactive --wait"){UseShellExecute=false};
     }
     public static ProcessStartInfo UpdateCommand(string id){
         if(id==null || !Regex.IsMatch(id,@"\A[A-Za-z0-9][A-Za-z0-9._+-]*\z"))
@@ -95,7 +101,20 @@ internal sealed partial class CraftWindow {
         var result=await Task.Run(()=>WindowsHealth.Protection());
         if(!page.IsDisposed)label.Text=result;
     }
-    Task<string> catalogRequest;
+    void ShowPremium(){
+        var page=Page("Funções Pro do programa de referência");
+        var info=new Label{AutoSize=true,MaximumSize=new System.Drawing.Size(520,0),
+            Text="O selo PRO identifica uma função da edição paga do Advanced SystemCare. No Craft, as funções disponíveis estão incluídas."};
+        page.Controls.Add(info);
+        ActionButton(page,"Abrir atualização de software",(s,e)=>ShowSoftware(),255);
+        var features=new ListView{View=View.Details,FullRowSelect=true,Width=570,Height=265,BackColor=surface,ForeColor=System.Drawing.Color.White};
+        features.Columns.Add("Função de referência",300);features.Columns.Add("Disponibilidade no Craft",250);
+        features.Items.Add(new ListViewItem(new[]{"Atualizar todos os programas","Disponível via WinGet"}));
+        foreach(var feature in new[]{"Atualização automática do próprio aplicativo","Limpeza automática de RAM","Otimização da Internet","Limpeza do registro","Desativação de programas","Proteção antispyware em tempo real","Pastas protegidas","Bloqueio automático de acesso","Proteção de impressão digital do navegador","Antirrastreamento"})
+            features.Items.Add(new ListViewItem(new[]{feature,"Ainda sem equivalente"}));
+        page.Controls.Add(features);
+    }
+    Task<CatalogResult> catalogRequest;
     void ShowSoftware(){
         var page=Page("Atualização de software");
         var bar=new FlowLayoutPanel{AutoSize=true};page.Controls.Add(bar);
@@ -106,11 +125,26 @@ internal sealed partial class CraftWindow {
         page.Controls.Add(new Label{AutoSize=true,Text="ID do pacote a atualizar"});page.Controls.Add(id);
         ActionButton(page,"Atualizar pacote",(s,e)=>{try{using(Process.Start(WindowsHealth.UpdateCommand(id.Text.Trim()))){}}
             catch(Exception ex){MessageBox.Show(this,ex.Message,Text);}},175);
+        var batchRow=new FlowLayoutPanel{AutoSize=true,WrapContents=false};
+        page.Controls.Add(batchRow);
+        var batch=ActionButton(batchRow,"Atualizar todos",(s,e)=>{
+            try{using(Process.Start(WindowsHealth.UpdateAllCommand())){}}
+            catch(Exception ex){MessageBox.Show(this,ex.Message,Text);}
+        },175);
+        const string premiumInfo="Recurso Pro no Advanced SystemCare, incluído no Craft.";
+        var badge=new Label{Text="PRO",AccessibleDescription=premiumInfo,AccessibleName=premiumInfo,
+            AutoSize=true,BackColor=System.Drawing.Color.FromArgb(255,194,87),ForeColor=System.Drawing.Color.FromArgb(36,28,14),
+            Font=new System.Drawing.Font(Font, System.Drawing.FontStyle.Bold),Margin=new Padding(3,10,0,0),Padding=new Padding(6,2,6,2)};
+        batchRow.Controls.Add(badge);
+        var hint=new ToolTip();hint.SetToolTip(badge,premiumInfo);hint.SetToolTip(batch,premiumInfo);
+        batch.AccessibleDescription=premiumInfo;
+        page.Disposed+=(sender,eventArgs)=>hint.Dispose();
+        batch.Enabled=false;
         Button available=null,all=null;
         Func<bool,Task> load=async updates=>{
             if(catalogRequest!=null && !catalogRequest.IsCompleted){output.Text="Uma consulta está em andamento. Aguarde e consulte novamente.";return;}
-            available.Enabled=all.Enabled=false;output.Text="Consultando o catálogo WinGet…";
-            try {catalogRequest=WindowsHealth.ListSoftware(updates);var result=await catalogRequest;if(!page.IsDisposed)output.Text=result;}
+            batch.Enabled=false;available.Enabled=all.Enabled=false;output.Text="Consultando o catálogo WinGet…";
+            try {catalogRequest=WindowsHealth.ListSoftware(updates);var result=await catalogRequest;if(!page.IsDisposed){output.Text=result.Text;batch.Enabled=updates && result.Success;}}
             catch(Exception ex){if(!page.IsDisposed)output.Text="Consulta indisponível: "+ex.Message;}
             finally{if(!page.IsDisposed)available.Enabled=all.Enabled=true;}
         };

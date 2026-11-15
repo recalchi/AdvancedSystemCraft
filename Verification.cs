@@ -53,6 +53,7 @@ class Verification {
             Check(protection.Length>0,"diagnóstico de proteção");
             Check(WindowsHealth.UpdateCommand("Git.Git").Arguments.Contains("--id Git.Git --exact"),"seleção exata do pacote");
             try{WindowsHealth.UpdateCommand("--all");throw new Exception("ID inválido aceito");}catch(ArgumentException){}
+            Check(WindowsHealth.UpdateAllCommand().Arguments=="upgrade --source winget --all --interactive --wait","lote interativo usa catálogo winget");
             Application.EnableVisualStyles();
             using(var window=new CraftWindow()){
                 window.Show();Application.DoEvents();
@@ -64,9 +65,13 @@ class Verification {
                 Check(Find<Button>(window,"Gerenciar nas configurações do Windows")!=null,"leitura da inicialização");
                 Find<Button>(window,"Desempenho").PerformClick();Application.DoEvents();
                 Check(Find<Button>(window,"Atualizar")!=null,"navegação para discos");
+                Find<Button>(window,"Funções Pro").PerformClick();Application.DoEvents();
+                Check(Find<Button>(window,"Abrir atualização de software")!=null,"inventário Pro navegável");
                 Find<Button>(window,"Software").PerformClick(); Application.DoEvents();
                 var lookup=Find<Button>(window,"Buscar atualizações");
                 Check(lookup!=null,"consulta de software na interface");
+                Check(Find<Label>(window,"PRO").AccessibleDescription.Contains("incluído no Craft"),"selo PRO identificado na tela de software");
+                Check(!Find<Button>(window,"Atualizar todos").Enabled,"lote aguarda a prévia");
                 if(args.Contains("--catalog")){
                     lookup.PerformClick();var limit=DateTime.UtcNow.AddMinutes(2);
                     do{Application.DoEvents();Thread.Sleep(40);}while(!lookup.Enabled && DateTime.UtcNow<limit);
@@ -83,6 +88,9 @@ class Verification {
                 using(var image=new Bitmap(preview.Width,preview.Height)){
                     preview.DrawToBitmap(image,new Rectangle(Point.Empty,image.Size));
                     image.Save(args[0],System.Drawing.Imaging.ImageFormat.Png);
+                    Find<Button>(preview,"Software").PerformClick();Application.DoEvents();
+                    preview.DrawToBitmap(image,new Rectangle(Point.Empty,image.Size));
+                    image.Save(Path.Combine(Path.GetDirectoryName(Path.GetFullPath(args[0])),"software.png"),System.Drawing.Imaging.ImageFormat.Png);
                 }
             }
         } finally {

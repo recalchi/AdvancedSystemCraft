@@ -11,11 +11,17 @@ Aplicativo independente de manutenção para Windows em português. Selecione as
 | Cuidado | Verifica arquivos .tmp com mais de sete dias na raiz da pasta temporária do usuário e atalhos .lnk com destino ausente em disco local na raiz da Área de Trabalho. |
 | Privacidade | Identifica entradas de cache de código nos perfis Default e Profile N de Chrome e Edge fechados. A seleção é opcional. |
 | Proteção e hardware | Consulta o firewall por perfil, o antivírus registrado, o estado dos discos físicos e o sinalizador de verificação pendente dos volumes. |
-| Software | Consulta o catálogo WinGet. Exibe as versões reportadas e permite abrir o instalador interativo para um ID exato. |
+| Software | Consulta o catálogo WinGet. Exibe as versões reportadas e permite abrir o instalador interativo para um ID exato. Após consultar as atualizações, o botão Atualizar todos permite iniciar um lote interativo. |
 | Correção | Mostra caminho e tamanho, revalida cada item selecionado e usa a Lixeira do Windows. Falhas aparecem na lista. |
 | Inicialização | Lista entradas das chaves Run e das pastas de inicialização do usuário e do computador. Abre as configurações do Windows para gerenciamento. |
 | Desempenho | Mostra capacidade e espaço livre dos discos fixos. |
 | Ferramentas | Abre o Monitor de Recursos, o Gerenciador de Tarefas e as configurações de inicialização. |
+
+## O selo PRO
+
+O selo dourado identifica um recurso pago no produto de referência e incluído no Craft. Em **Software**, clique em **Buscar atualizações** para obter a prévia do WinGet e habilitar **Atualizar todos**. A tela **Funções Pro** distingue os equivalentes disponíveis dos recursos ainda pendentes.
+
+![Atualização de software com identificação PRO](docs/software.png)
 
 ## Executar a partir do código
 

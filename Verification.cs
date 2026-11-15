@@ -190,7 +190,7 @@ class Verification {
             }
         } finally {
             foreach(string file in new[]{link,temp,keep}) if(File.Exists(file)) File.Delete(file);
-            Directory.Delete(dir);
+            if(Directory.Exists(dir)) Directory.Delete(dir, true);
         }
     }
     static T Find<T>(Control parent,string text,bool summary=false) where T:Control{

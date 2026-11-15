@@ -1,1 +1,29 @@
-# AdvancedSystemCraft
+# Advanced System Craft
+
+Aplicativo independente de manutenção para Windows em português. Selecione as categorias, execute uma verificação e revise os arquivos antes de enviá-los à Lixeira. A versão 0.1.0 funciona localmente, sem instalação, anúncios ou telemetria.
+
+**[Baixar para Windows](https://github.com/recalchi/AdvancedSystemCraft/releases/tag/v0.1.0)**
+
+![Tela de cuidado do Advanced System Craft](docs/cuidado.png)
+
+| Área | Funções desta versão |
+| --- | --- |
+| Cuidado | Verifica arquivos .tmp com mais de sete dias na raiz da pasta temporária do usuário e atalhos .lnk com destino ausente em disco local na raiz da Área de Trabalho. |
+| Correção | Mostra caminho e tamanho, revalida cada item selecionado e usa a Lixeira do Windows. Falhas aparecem na lista. |
+| Inicialização | Lista entradas das chaves Run e das pastas de inicialização do usuário e do computador. Abre as configurações do Windows para gerenciamento. |
+| Desempenho | Mostra capacidade e espaço livre dos discos fixos. |
+| Ferramentas | Abre o Monitor de Recursos, o Gerenciador de Tarefas e as configurações de inicialização. |
+
+## Executar a partir do código
+
+No Windows com o .NET Framework 4.x e seu compilador C# de 64 bits, abra o PowerShell na pasta do projeto.
+
+~~~powershell
+.\build.ps1
+.\test.ps1
+& '.\build\Advanced System Craft.exe'
+~~~
+
+O teste cria amostras próprias, verifica a correção de um atalho descartável e percorre a interface. As pastas reais do usuário são apenas examinadas no teste.
+
+O fluxo de cuidado manual tem como referência a documentação pública do Advanced SystemCare. A tabela acima descreve a cobertura atual da implementação. [Manual do produto de referência](https://www.iobit.com/product-manuals/asc-help/)

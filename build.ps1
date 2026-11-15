@@ -9,7 +9,7 @@ $sources = @(Get-ChildItem -LiteralPath $PSScriptRoot -Filter '*.cs' -File |
 $flags = @('/nologo','/optimize+','/win32manifest:app.manifest','/reference:System.Management.dll','/reference:Microsoft.VisualBasic.dll',
     '/reference:Microsoft.CSharp.dll','/reference:System.Windows.Forms.dll','/reference:System.Drawing.dll')
 if ($Verification) {
-    $flags += '/target:exe','/main:Verification',"/out:$PSScriptRoot\build\Verification.exe"
+    $flags += '/define:CRAFT_REGISTRY_TESTS','/target:exe','/main:Verification',"/out:$PSScriptRoot\build\Verification.exe"
 } else {
     $flags += '/target:winexe',"/out:$out\Advanced System Craft.exe"
 }

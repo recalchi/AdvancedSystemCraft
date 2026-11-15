@@ -57,6 +57,28 @@ class Verification {
             } finally { Microsoft.Win32.Registry.CurrentUser.DeleteSubKey(fixture, false); }
         }
     }
+    static void VerifyIgnoredAndHistory(string root) {
+        string folder = Path.Combine(root, "state");
+        string first = Path.Combine(root, "one.tmp");
+        string second = Path.Combine(root, "one-copy.tmp");
+        File.WriteAllText(first, "one");
+        File.WriteAllText(second, "two");
+        var ignored = new IgnoredPaths(folder);
+        Check(ignored.Load().Count == 0, "lista de exclusões começa vazia");
+        ignored.Ignore(new[] { first, first });
+        Check(ignored.Load().SetEquals(new[] { Path.GetFullPath(first) }), "exclusão persiste por caminho exato");
+        Check(!ignored.Load().Contains(Path.GetFullPath(second)), "exclusão não cobre nomes parecidos");
+        ignored.Remove(new[] { first });
+        Check(ignored.Load().Count == 0, "exclusão pode ser removida");
+        var history = new CareHistory(Path.Combine(root, "history"));
+        var report = new Report();
+        report.Examined = 2;
+        report.Items.Add(new Finding { Path = first, Category = "Amostra", Size = 3 });
+        history.SaveScan("manual", report, "Diagnóstico de amostra", 17);
+        history.SaveRepairs(new[] { "Lixeira\t" + first });
+        var output = File.ReadAllText(history.LastFile);
+        Check(history.Reports().Length == 1 && output.Contains("Diagnóstico de amostra") && output.Contains("Lixeira"), "histórico registra verificação e correção");
+    }
     [STAThread] static void Main(string[] args) {
         string dir=Directory.CreateDirectory(Path.Combine(Path.GetTempPath(),"craft-test-"+Guid.NewGuid())).FullName;
         string temp=Path.Combine(dir,"sample.tmp"), keep=Path.Combine(dir,"recent.tmp"), link=Path.Combine(dir,"missing.lnk");
@@ -97,6 +119,8 @@ class Verification {
             Console.WriteLine("Varredura de arquivos concluída em "+clock.ElapsedMilliseconds+" ms.");
             VerifyStartup();
             VerifyPowerPlans();
+            RegistryCareVerification.Run();
+            VerifyIgnoredAndHistory(dir);
             var protection=WindowsHealth.Protection();
             Console.WriteLine(protection);
             Check(protection.Length>0,"diagnóstico de proteção");

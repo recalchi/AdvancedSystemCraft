@@ -57,6 +57,14 @@ class Verification {
             Application.EnableVisualStyles();
             using(var window=new CraftWindow()){
                 window.Show();Application.DoEvents();
+                var privacy=Find<CheckBox>(window,"Cache de código do Chrome e do Edge");
+                privacy.Checked=true;Find<RadioButton>(window,"Recomendado").Checked=true;Application.DoEvents();
+                Check(!privacy.Visible,"modo recomendado selecionável");
+                Find<RadioButton>(window,"Manual").Checked=true;Application.DoEvents();
+                Check(privacy.Visible && privacy.Checked,"escolhas manuais preservadas");
+                privacy.Checked=false;
+                Check(CraftWindow.IncludeCache(9,100) && !CraftWindow.IncludeCache(10,100) && !CraftWindow.IncludeCache(0,0),"limiar de espaço no recomendado");
+                Find<RadioButton>(window,"Recomendado").Checked=true;
                 var scan=Find<ScanButton>(window,"Verificar");scan.PerformClick();
                 var deadline=DateTime.UtcNow.AddSeconds(45);
                 do{Application.DoEvents();Thread.Sleep(20);}while(scan.Text=="Parar" && DateTime.UtcNow<deadline);
@@ -65,6 +73,15 @@ class Verification {
                 Check(Find<Button>(window,"Gerenciar nas configurações do Windows")!=null,"leitura da inicialização");
                 Find<Button>(window,"Desempenho").PerformClick();Application.DoEvents();
                 Check(Find<Button>(window,"Atualizar")!=null,"navegação para discos");
+                var end=DateTime.UtcNow.AddSeconds(20);
+                var cpu=(Label)window.Controls.Find("cpu-usage",true).Single();
+                while(!cpu.Text.Contains("%") && DateTime.UtcNow<end){Application.DoEvents();Thread.Sleep(20);}
+                var ram=(Label)window.Controls.Find("ram-usage",true).Single();
+                var processes=(ListView)window.Controls.Find("ram-processes",true).Single();
+                Check(cpu.Text.Contains("%") && ram.Text.Contains("GiB") && processes.Items.Count>0,"monitor real de CPU, RAM e processos");
+                Console.WriteLine(cpu.Text+" · "+ram.Text);
+                Check(ResourceSample.CpuPercent(new ResourceSample{Total=100,Idle=50},new ResourceSample{Total=200,Idle=75})==75,"cálculo desconta tempo ocioso");
+                Check(!ResourceSample.CpuPercent(null,new ResourceSample()).HasValue,"primeira amostra sem percentual");
                 Find<Button>(window,"Funções Pro").PerformClick();Application.DoEvents();
                 Check(Find<Button>(window,"Abrir atualização de software")!=null,"inventário Pro navegável");
                 Find<Button>(window,"Software").PerformClick(); Application.DoEvents();

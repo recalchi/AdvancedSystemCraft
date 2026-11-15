@@ -10,7 +10,7 @@ using System.Diagnostics;
 using System.Reflection;
 [assembly: AssemblyTitle("Advanced System Craft")]
 [assembly: AssemblyProduct("Advanced System Craft")]
-[assembly: AssemblyVersion("0.2.0.0")]
+[assembly: AssemblyVersion("0.3.0.0")]
 
 internal sealed class ScanButton : Button {
     public ScanButton() {
@@ -35,6 +35,8 @@ internal sealed partial class CraftWindow : Form {
     readonly Panel body=new Panel();
     readonly Panel care=new Panel();
     readonly CheckBox junk=new CheckBox(), shortcuts=new CheckBox(), protection=new CheckBox(), hardware=new CheckBox(), privacy=new CheckBox(), volumes=new CheckBox();
+    readonly RadioButton recommended=new RadioButton{Text="Recomendado",AutoSize=true};
+    readonly RadioButton manual=new RadioButton{Text="Manual",AutoSize=true,Checked=true};
     readonly TextBox diagnostic=new TextBox();
     readonly ScanButton scan=new ScanButton();
     readonly ListView list=new ListView();
@@ -57,7 +59,10 @@ internal sealed partial class CraftWindow : Form {
         var layout=new TableLayoutPanel {Dock=DockStyle.Fill,ColumnCount=1,RowCount=4};
         layout.RowStyles.Add(new RowStyle(SizeType.Absolute,54)); layout.RowStyles.Add(new RowStyle(SizeType.Absolute,215));
         layout.RowStyles.Add(new RowStyle(SizeType.Percent,100)); layout.RowStyles.Add(new RowStyle(SizeType.Absolute,62));
-        layout.Controls.Add(Title("Cuidado  /  Modo manual"),0,0);
+                var heading=new FlowLayoutPanel{Dock=DockStyle.Fill,WrapContents=false};
+        var title=Title("Cuidado");title.Width=155;heading.Controls.Add(title);
+        heading.Controls.Add(recommended);heading.Controls.Add(manual);
+        layout.Controls.Add(heading,0,0);
         var options=new FlowLayoutPanel {Dock=DockStyle.Fill,WrapContents=false};
         scan.Font=new Font(Font.FontFamily,16,FontStyle.Bold); scan.Click+=async (s,e)=>await RunScan();
         options.Controls.Add(scan);
@@ -71,7 +76,10 @@ internal sealed partial class CraftWindow : Form {
         Style(selectAll,"Selecionar tudo");
         selectAll.Click+=(s,e)=>{if(operation==null && !repairing)junk.Checked=shortcuts.Checked=protection.Checked=hardware.Checked=volumes.Checked=privacy.Checked=true;};
         checks.Controls.Add(selectAll);
-        options.Controls.Add(checks); layout.Controls.Add(options,0,1);
+                var explanation=new Label{MaximumSize=new Size(365,0),AutoSize=true,Visible=false,
+            Text="Verifica temporários, atalhos, proteção e discos. Inclui o cache de código quando a unidade do perfil tem menos de 10% de espaço disponível."};
+        recommended.CheckedChanged+=(s,e)=>{checks.Visible=!recommended.Checked;explanation.Visible=recommended.Checked;};
+        options.Controls.Add(checks);options.Controls.Add(explanation);layout.Controls.Add(options,0,1);
         list.Dock=DockStyle.Fill; list.View=View.Details; list.CheckBoxes=true; list.FullRowSelect=true;
         list.BackColor=Color.FromArgb(28,42,59); list.ForeColor=Color.White; list.BorderStyle=BorderStyle.None;
         list.Columns.Add("Categoria",148); list.Columns.Add("Arquivo",385); list.Columns.Add("Tamanho",96);
@@ -105,15 +113,28 @@ internal sealed partial class CraftWindow : Form {
         foreach(Control c in body.Controls.Cast<Control>().ToArray()) {body.Controls.Remove(c);if(c!=care)c.Dispose();}
     }
     void ShowCare(){ClearBody();body.Controls.Add(care);}
+    internal static bool IncludeCache(long available,long capacity){return capacity>0 && available>=0 && available/(double)capacity<0.10;}
     void UpdateFix(){fix.Enabled=operation==null && !repairing && list.CheckedItems.Count>0;}
     async Task RunScan() {
         if(operation!=null){operation.Cancel();return;}
-        if(!junk.Checked && !shortcuts.Checked && !protection.Checked && !hardware.Checked && !privacy.Checked && !volumes.Checked){status.Text="Selecione ao menos uma categoria.";return;}
+        if(!recommended.Checked && !junk.Checked && !shortcuts.Checked && !protection.Checked && !hardware.Checked && !privacy.Checked && !volumes.Checked){status.Text="Selecione ao menos uma categoria.";return;}
         bool files=junk.Checked,links=shortcuts.Checked, security=protection.Checked, disks=hardware.Checked, browsers=privacy.Checked, examineVolumes=volumes.Checked;
+        bool automatic=recommended.Checked;
+        if(automatic){files=links=security=disks=examineVolumes=true; browsers=false;}
+        manual.Enabled=recommended.Enabled=false;
         operation=new CancellationTokenSource();var token=operation.Token;
         list.Visible=false; list.Items.Clear(); fix.Enabled=false; diagnostic.Visible=false; junk.Enabled=shortcuts.Enabled=hardware.Enabled=volumes.Enabled=privacy.Enabled=protection.Enabled=false; scan.Text="Parar"; status.Text="Verificando arquivos locais…";
         try {
-            var timer=Stopwatch.StartNew(); var report=await Task.Run(()=>{var findings=Engine.Scan(Engine.Temp,Engine.Desktop,files,links,token);if(browsers)Engine.ScanBrowserCaches(findings,token);return findings;});
+            var timer=Stopwatch.StartNew(); var report=await Task.Run(()=>{var findings=Engine.Scan(Engine.Temp,Engine.Desktop,files,links,token);if(automatic){
+                try{
+                    var root=Path.GetPathRoot(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData));
+                    var drive=new DriveInfo(root);
+                    browsers=IncludeCache(drive.AvailableFreeSpace,drive.TotalSize);
+                    findings.Notices.Add(browsers?"Cache incluído por espaço disponível abaixo de 10%.":"Espaço disponível de pelo menos 10%; cache preservado.");
+                }catch(IOException){findings.Notices.Add("Espaço disponível desconhecido; cache preservado.");}
+                 catch(UnauthorizedAccessException){findings.Notices.Add("Acesso à capacidade indisponível; cache preservado.");}
+            }
+            if(browsers)Engine.ScanBrowserCaches(findings,token);return findings;});
             var details=await Task.Run(()=>{
                 var sections=new System.Collections.Generic.List<string>(report.Notices);
                 token.ThrowIfCancellationRequested();
@@ -136,7 +157,7 @@ internal sealed partial class CraftWindow : Form {
             list.EndUpdate();list.Visible=report.Items.Count>0;status.Text=String.Format("{0} examinados   ·   {1} para revisar   ·   {2} inacessíveis   ·   {3} ms",report.Examined,report.Items.Count,report.Skipped,timer.ElapsedMilliseconds);
         } catch(OperationCanceledException){if(!IsDisposed)status.Text="Verificação cancelada.";}
           catch(Exception ex){if(!IsDisposed)status.Text=ex.Message;}
-        finally {operation.Dispose();operation=null;if(!IsDisposed){junk.Enabled=shortcuts.Enabled=hardware.Enabled=volumes.Enabled=privacy.Enabled=protection.Enabled=true; scan.Text="Verificar";UpdateFix();}}
+        finally {operation.Dispose();operation=null;if(!IsDisposed){manual.Enabled=recommended.Enabled=true;junk.Enabled=shortcuts.Enabled=hardware.Enabled=volumes.Enabled=privacy.Enabled=protection.Enabled=true; scan.Text="Verificar";UpdateFix();}}
     }
     async Task Repair(){
         var selected=list.CheckedItems.Cast<ListViewItem>().ToArray();
@@ -191,7 +212,8 @@ internal sealed partial class CraftWindow : Form {
         p.Controls.Add(manage);
     }
     void ShowPerformance(){
-        var p=Page("Desempenho dos discos");
+        var p=Page("Monitor de desempenho");
+        AddResourceMonitor(p);
         foreach(var drive in DriveInfo.GetDrives().Where(d=>d.DriveType==DriveType.Fixed)){
             string text;
             try {var total=drive.TotalSize;var free=drive.AvailableFreeSpace;

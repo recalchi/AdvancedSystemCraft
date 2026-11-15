@@ -15,5 +15,5 @@ jobs:
         with:
           name: advanced-system-craft-windows
           path: |
-            build/v0.2.0/Advanced System Craft.exe
+            build/v0.3.0/Advanced System Craft.exe
             build/cuidado.png

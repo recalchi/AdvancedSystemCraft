@@ -9,9 +9,54 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
-internal sealed class CatalogResult {
-    public string Text; public bool Success;
+internal sealed class SoftwarePackage {
+    internal string Name,Id,Installed,Available;
 }
+
+internal sealed class CatalogResult {
+    internal string Text;
+    internal bool Success,Recognized;
+    internal readonly List<SoftwarePackage> Packages=new List<SoftwarePackage>();
+
+    internal static bool ValidId(string id) {
+        return id!=null && Regex.IsMatch(id,@"\A[A-Za-z0-9][A-Za-z0-9._+-]*\z") && !id.EndsWith("...",StringComparison.Ordinal);
+    }
+
+    internal static CatalogResult FromOutput(string stdout,string stderr,int code) {
+        var result=new CatalogResult{Success=code==0,Text=(stdout+Environment.NewLine+stderr).Trim()};
+        if(code!=0){
+            result.Text="WinGet 0x"+code.ToString("X8")+Environment.NewLine+result.Text;
+            return result;
+        }
+        var lines=stdout.Replace("\r\n","\n").Replace('\r','\n').Split('\n');
+        // WinGet list prints a localized fixed-width table. Unknown layouts stay available as text.
+        var header=new Regex(@"^(?:Name|Nome) +(?<id>Id) +(?<version>Version|Versão)(?: +(?<available>Available|Disponível))? *$",RegexOptions.IgnoreCase);
+        for(int i=0;i+1<lines.Length;i++){
+            var columns=header.Match(lines[i]);
+            if(!columns.Success || !Regex.IsMatch(lines[i+1],@"^-{4,}\s*$"))continue;
+            result.Recognized=true;
+            int id=columns.Groups["id"].Index, version=columns.Groups["version"].Index;
+            var next=columns.Groups["available"];
+            for(int row=i+2;row<lines.Length;row++){
+                string line=lines[row];
+                if(line.Length<=version || line[id-1]!=' ' || line[version-1]!=' ' ||
+                    line[id]==' ' || line[version]==' ')continue;
+                var name=line.Substring(0,id).Trim();
+                var identity=line.Substring(id,version-id).TrimEnd();
+                if(name.Length==0 || !ValidId(identity))continue;
+                int end=next.Success?Math.Min(next.Index,line.Length):line.Length;
+                if(end<=version || (next.Success && line.Length>next.Index && line[next.Index-1]!=' '))continue;
+                string installed=line.Substring(version,end-version).TrimEnd();
+                string available=next.Success && line.Length>next.Index?line.Substring(next.Index).Trim():String.Empty;
+                if(installed.Length==0)continue;
+                result.Packages.Add(new SoftwarePackage{Name=name,Id=identity,Installed=installed,Available=available});
+            }
+            break;
+        }
+        return result;
+    }
+}
+
 internal static class WindowsHealth {
     public static string Protection(){
         var lines=new List<string>();
@@ -74,16 +119,14 @@ internal static class WindowsHealth {
             var output=process.StandardOutput.ReadToEndAsync();var errors=process.StandardError.ReadToEndAsync();
             await Task.WhenAll(output,errors).ConfigureAwait(false);
             process.WaitForExit();
-            var result=(output.Result+Environment.NewLine+errors.Result).Trim();
-            if(process.ExitCode!=0)result="WinGet 0x"+process.ExitCode.ToString("X8")+Environment.NewLine+result;
-            return new CatalogResult{Text=result,Success=process.ExitCode==0};
+            return CatalogResult.FromOutput(output.Result,errors.Result,process.ExitCode);
         }
     }
     public static ProcessStartInfo UpdateAllCommand(){
         return new ProcessStartInfo(WingetPath(),"upgrade --source winget --all --interactive --wait"){UseShellExecute=false};
     }
     public static ProcessStartInfo UpdateCommand(string id){
-        if(id==null || !Regex.IsMatch(id,@"\A[A-Za-z0-9][A-Za-z0-9._+-]*\z"))
+        if(!CatalogResult.ValidId(id))
             throw new ArgumentException("Informe o ID exato que aparece no catálogo WinGet.");
         return new ProcessStartInfo(WingetPath(),"upgrade --source winget --id "+id+" --exact --interactive --wait"){UseShellExecute=false};
     }
@@ -95,6 +138,7 @@ internal sealed partial class CraftWindow {
     }
     async void ShowProtection(){
         var page=Page("Proteção");
+        AddDefenderCare(page);
         var label=new Label{AutoSize=true,MaximumSize=new System.Drawing.Size(560,0),Text="Consultando o Windows…"};
         page.Controls.Add(label);
         ActionButton(page,"Abrir Segurança do Windows",(s,e)=>{try{Process.Start("windowsdefender:");}catch(Exception ex){MessageBox.Show(ex.Message);}},230);
@@ -107,10 +151,12 @@ internal sealed partial class CraftWindow {
             Text="O selo PRO identifica uma função da edição paga do Advanced SystemCare. No Craft, as funções disponíveis estão incluídas."};
         page.Controls.Add(info);
         ActionButton(page,"Abrir atualização de software",(s,e)=>ShowSoftware(),255);
+        ActionButton(page,"Revisar registro do usuário",(s,e)=>ShowRegistryCare(),255);
         var features=new ListView{View=View.Details,FullRowSelect=true,Width=570,Height=265,BackColor=surface,ForeColor=System.Drawing.Color.White};
         features.Columns.Add("Função de referência",300);features.Columns.Add("Disponibilidade no Craft",250);
         features.Items.Add(new ListViewItem(new[]{"Atualizar todos os programas","Disponível via WinGet"}));
-        foreach(var feature in new[]{"Atualização automática do próprio aplicativo","Limpeza automática de RAM","Otimização da Internet","Limpeza do registro","Desativação de programas","Proteção antispyware em tempo real","Pastas protegidas","Bloqueio automático de acesso","Proteção de impressão digital do navegador","Antirrastreamento"})
+        features.Items.Add(new ListViewItem(new[]{"Limpeza do registro","Parcial: App Paths do usuário"}));
+        foreach(var feature in new[]{"Atualização automática do próprio aplicativo","Limpeza automática de RAM","Otimização da Internet","Desativação de programas","Proteção antispyware em tempo real","Pastas protegidas","Bloqueio automático de acesso","Proteção de impressão digital do navegador","Antirrastreamento"})
             features.Items.Add(new ListViewItem(new[]{feature,"Ainda sem equivalente"}));
         page.Controls.Add(features);
     }
@@ -118,15 +164,28 @@ internal sealed partial class CraftWindow {
     void ShowSoftware(){
         var page=Page("Atualização de software");
         var bar=new FlowLayoutPanel{AutoSize=true};page.Controls.Add(bar);
+        var message=new Label{AutoSize=true,MaximumSize=new System.Drawing.Size(600,0),Text="Consulte o catálogo WinGet para comparar versões."};
+        page.Controls.Add(message);
+        var tabs=new TabControl{Width=Math.Max(480,body.Width-65),Height=285};
+        var catalog=new TabPage("Programas");var details=new TabPage("Saída do WinGet");
+        tabs.TabPages.Add(catalog);tabs.TabPages.Add(details);page.Controls.Add(tabs);
+        var list=new ListView{Name="catalog-packages",Dock=DockStyle.Fill,View=View.Details,FullRowSelect=true,
+            MultiSelect=false,HideSelection=false,BackColor=surface,ForeColor=System.Drawing.Color.White,ShowItemToolTips=true};
+        list.Columns.Add("Programa",230);list.Columns.Add("Instalada",115);list.Columns.Add("Disponível",120);list.Columns.Add("ID WinGet",220);catalog.Controls.Add(list);
         var output=new TextBox{Name="catalog-output",Multiline=true,ReadOnly=true,WordWrap=false,ScrollBars=ScrollBars.Both,
-            Width=Math.Max(480,body.Width-65),Height=280,Font=new System.Drawing.Font("Consolas",9),Text="Consulte as versões pelo catálogo WinGet."};
-        page.Controls.Add(output);
-        var id=new TextBox{Width=300,AccessibleName="Identificador do pacote"};
-        page.Controls.Add(new Label{AutoSize=true,Text="ID do pacote a atualizar"});page.Controls.Add(id);
-        ActionButton(page,"Atualizar pacote",(s,e)=>{try{using(Process.Start(WindowsHealth.UpdateCommand(id.Text.Trim()))){}}
-            catch(Exception ex){MessageBox.Show(this,ex.Message,Text);}},175);
-        var batchRow=new FlowLayoutPanel{AutoSize=true,WrapContents=false};
-        page.Controls.Add(batchRow);
+            Dock=DockStyle.Fill,Font=new System.Drawing.Font("Consolas",9)};
+        details.Controls.Add(output);
+        var batchRow=new FlowLayoutPanel{AutoSize=true,WrapContents=false};page.Controls.Add(batchRow);
+        var update=ActionButton(batchRow,"Atualizar selecionado",(s,e)=>{
+            if(list.SelectedItems.Count!=1)return;
+            var package=(SoftwarePackage)list.SelectedItems[0].Tag;
+            if(package.Available.Length==0)return;
+            try{using(Process.Start(WindowsHealth.UpdateCommand(package.Id))){}}
+            catch(Exception ex){MessageBox.Show(this,ex.Message,Text);}
+        },190);
+        update.Enabled=false;
+        list.SelectedIndexChanged+=(s,e)=>update.Enabled=list.SelectedItems.Count==1 &&
+            ((SoftwarePackage)list.SelectedItems[0].Tag).Available.Length!=0;
         var batch=ActionButton(batchRow,"Atualizar todos",(s,e)=>{
             try{using(Process.Start(WindowsHealth.UpdateAllCommand())){}}
             catch(Exception ex){MessageBox.Show(this,ex.Message,Text);}
@@ -142,10 +201,30 @@ internal sealed partial class CraftWindow {
         batch.Enabled=false;
         Button available=null,all=null;
         Func<bool,Task> load=async updates=>{
-            if(catalogRequest!=null && !catalogRequest.IsCompleted){output.Text="Uma consulta está em andamento. Aguarde e consulte novamente.";return;}
-            batch.Enabled=false;available.Enabled=all.Enabled=false;output.Text="Consultando o catálogo WinGet…";
-            try {catalogRequest=WindowsHealth.ListSoftware(updates);var result=await catalogRequest;if(!page.IsDisposed){output.Text=result.Text;batch.Enabled=updates && result.Success;}}
-            catch(Exception ex){if(!page.IsDisposed)output.Text="Consulta indisponível: "+ex.Message;}
+            if(catalogRequest!=null && !catalogRequest.IsCompleted){message.Text="Uma consulta está em andamento. Aguarde e consulte novamente.";return;}
+            update.Enabled=batch.Enabled=available.Enabled=all.Enabled=false;
+            list.Items.Clear();output.Clear();message.Text="Consultando o catálogo WinGet…";
+            try {
+                catalogRequest=WindowsHealth.ListSoftware(updates);
+                var result=await catalogRequest;
+                if(page.IsDisposed)return;
+                output.Text=result.Text;
+                int upgrades=0;
+                list.BeginUpdate();
+                try{
+                    foreach(var package in result.Packages){
+                        if(package.Available.Length!=0)upgrades++;
+                        var row=new ListViewItem(new[]{package.Name,package.Installed,
+                            package.Available.Length==0?"Não informada":package.Available,package.Id});
+                        row.Tag=package;row.ToolTipText=package.Id;list.Items.Add(row);
+                    }
+                }finally{list.EndUpdate();}
+                tabs.SelectedTab=list.Items.Count>0?catalog:details;
+                message.Text=list.Items.Count>0?String.Format("{0} programas na tabela · {1} com versão disponível. Selecione uma linha para atualizar.",list.Items.Count,upgrades):
+                    result.Success?"Confira o resultado completo na saída do WinGet.":"Falha na consulta. Consulte a saída do WinGet.";
+                batch.Enabled=updates && result.Success && upgrades>0;
+            }
+            catch(Exception ex){if(!page.IsDisposed){message.Text="Consulta indisponível: "+ex.Message;output.Text=ex.Message;}}
             finally{if(!page.IsDisposed)available.Enabled=all.Enabled=true;}
         };
         available=ActionButton(bar,"Buscar atualizações",async (s,e)=>await load(true),180);

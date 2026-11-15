@@ -1,0 +1,22 @@
+name: Real software upgrade (disposable Windows)
+on: workflow_dispatch
+permissions:
+  contents: read
+jobs:
+  upgrade:
+    runs-on: windows-2025
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile and update one portable package through the Craft window
+        shell: powershell
+        run: |
+          .\build.ps1
+          $app = @(Get-ChildItem build -File -Recurse -Filter 'Advanced System Craft.exe')
+          if ($app.Count -ne 1) { throw 'Expected exactly one compiled Craft executable.' }
+          .\test-upgrade-hosted.ps1 -Executable $app[0].FullName
+      - uses: actions/upload-artifact@v4
+        with:
+          name: real-software-upgrade-witness
+          path: ${{ runner.temp }}/software-upgrade-witness.json
+          if-no-files-found: error

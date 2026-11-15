@@ -11,9 +11,15 @@ jobs:
       - name: Compile and exercise the Windows app
         shell: pwsh
         run: ./test.ps1 -Preview "$PWD/build/cuidado.png"
+      - name: Verify published GUI scan and correction on sample files
+        shell: powershell
+        run: ./test-desktop.ps1 -Executable 'build/v0.5.0/Advanced System Craft.exe'
+      - name: Verify catalog parsing
+        shell: powershell
+        run: ./test-software.ps1 -Executable 'build/v0.5.0/Advanced System Craft.exe'
       - uses: actions/upload-artifact@v4
         with:
           name: advanced-system-craft-windows
           path: |
-            build/v0.4.0/Advanced System Craft.exe
+            build/v0.5.0/Advanced System Craft.exe
             build/cuidado.png

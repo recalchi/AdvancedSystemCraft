@@ -111,6 +111,10 @@ class Verification {
                 Console.WriteLine(cpu.Text+" · "+ram.Text);
                 Check(ResourceSample.CpuPercent(new ResourceSample{Total=100,Idle=50},new ResourceSample{Total=200,Idle=75})==75,"cálculo desconta tempo ocioso");
                 Check(!ResourceSample.CpuPercent(null,new ResourceSample()).HasValue,"primeira amostra sem percentual");
+                Find<Button>(window,"Discos").PerformClick();Application.DoEvents();
+                Check(Find<Button>(window,"Verificar sistema de arquivos")!=null,"manutenção de discos pela interface");
+                Check(DiskCommands.For(@"E:\",DiskAction.Check).Arguments=="E:" && DiskCommands.For(@"E:\",DiskAction.Repair).Arguments=="E: /F","verificação e reparo usam operações distintas");
+                Check(DiskCommands.For(@"E:\",DiskAction.Optimize).Arguments=="E: /O /U /V","otimização respeita o tipo de mídia");
                 Find<Button>(window,"Funções Pro").PerformClick();Application.DoEvents();
                 Check(Find<Button>(window,"Abrir atualização de software")!=null,"inventário Pro navegável");
                 Find<Button>(window,"Software").PerformClick(); Application.DoEvents();

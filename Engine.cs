@@ -60,22 +60,45 @@ internal static class Engine {
     }
     public static Report Scan(string temp, string desktop, bool files, bool links, CancellationToken token) {
         var report = new Report();
-        Action<string,bool> scan = (root, shortcut) => {
+        token.ThrowIfCancellationRequested();
+        if(files)ScanDirectory(report,temp,false,token);
+        if(links)ScanDirectory(report,desktop,true,token);
+        return report;
+    }
+    static void ScanDirectory(Report report,string root,bool shortcuts,CancellationToken token) {
+        var pending=new Stack<DirectoryInfo>();
+        var baseDir=new DirectoryInfo(root);
+        if(!LocalPath(baseDir.FullName) || baseDir.Parent==null){report.Skipped++;return;}
+        pending.Push(baseDir);
+        while(pending.Count!=0){
+            token.ThrowIfCancellationRequested();
+            var dir=pending.Pop();
             try {
-                var dir = new DirectoryInfo(root);
-                if (!LocalPath(dir.FullName) || IsLink(dir)) { report.Skipped++; return; }
-                foreach (var file in dir.EnumerateFiles(shortcut ? "*.lnk" : "*.tmp")) {
+                if(IsLink(dir)){report.Skipped++;continue;}
+                foreach(var file in dir.EnumerateFiles(shortcuts?"*.lnk":"*.tmp")){
                     token.ThrowIfCancellationRequested();
                     report.Examined++;
-                    try { var item = Inspect(file,shortcut); if (item != null) report.Items.Add(item); }
-                    catch (Exception ex) { if (!Expected(ex)) throw; report.Skipped++; }
+                    try{
+                        var item=Inspect(file,shortcuts);
+                        if(item!=null)report.Items.Add(item);
+                    }catch(Exception ex){if(!Expected(ex))throw;report.Skipped++;}
                 }
-            } catch (Exception ex) { if (!Expected(ex)) throw; report.Skipped++; }
-        };
-        token.ThrowIfCancellationRequested();
-        if (files) scan(temp,false);
-        if (links) scan(desktop,true);
-        return report;
+                if(!shortcuts)foreach(var child in dir.EnumerateDirectories()){
+                    token.ThrowIfCancellationRequested();pending.Push(child);
+                }
+            }catch(Exception ex){if(!Expected(ex))throw;report.Skipped++;}
+        }
+    }
+    static bool EligibleDirectory(DirectoryInfo root,DirectoryInfo parent,bool directOnly) {
+        if(root.Parent==null)return false;
+        string expected=root.FullName.TrimEnd(Path.DirectorySeparatorChar);
+        while(parent!=null){
+            if(IsLink(parent))return false;
+            if(String.Equals(parent.FullName.TrimEnd(Path.DirectorySeparatorChar),expected,StringComparison.OrdinalIgnoreCase))return true;
+            if(directOnly)return false;
+            parent=parent.Parent;
+        }
+        return false;
     }
     static bool BrowserOpen(string name) {
         var processes=Process.GetProcessesByName(name);
@@ -142,8 +165,7 @@ internal static class Engine {
         bool shortcut = item.Target != null;
         var dir = new DirectoryInfo(shortcut ? desktop : temp);
         var file = new FileInfo(item.Path);
-        if (!LocalPath(file.FullName) || IsLink(dir) ||
-            !String.Equals(dir.FullName.TrimEnd('\\'),file.DirectoryName.TrimEnd('\\'),StringComparison.OrdinalIgnoreCase))
+        if (!LocalPath(file.FullName) || !EligibleDirectory(dir,file.Directory,shortcut))
             throw new IOException("Local alterado desde a verificação.");
         var current = Inspect(file,shortcut);
         if (current == null || current.Size != item.Size || current.Modified != item.Modified || current.Target != item.Target)

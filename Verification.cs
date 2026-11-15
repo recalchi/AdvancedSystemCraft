@@ -10,6 +10,33 @@ class Verification {
         if(!ok) throw new Exception(name);
         Console.WriteLine("PASS "+name);
     }
+    static void VerifyStartup() {
+        string fixture=@"Software\CraftVerification-"+Guid.NewGuid().ToString("N");
+        const string raw=@"%TEMP%\Craft fixture.exe";
+        using(var root=Microsoft.Win32.Registry.CurrentUser.CreateSubKey(fixture)){
+            try{
+                using(var active=root.CreateSubKey("Active"))active.SetValue("Fixture",raw,Microsoft.Win32.RegistryValueKind.ExpandString);
+                StartupEntry entry;
+                using(var active=root.OpenSubKey("Active"))entry=StartupEntry.Read(active,"Fixture",false);
+                entry.Move(root,"Active","Paused");
+                using(var active=root.OpenSubKey("Active"))Check(active.GetValue("Fixture")==null,"pausa a entrada de amostra");
+                using(var copy=root.OpenSubKey("Paused"))entry=StartupEntry.Read(copy,"Fixture",true);
+                Check(entry.Command==raw && entry.Kind==Microsoft.Win32.RegistryValueKind.ExpandString,"cópia preserva variáveis e tipo");
+                using(var active=root.OpenSubKey("Active",true))active.SetValue("Fixture","outro comando");
+                try{entry.Move(root,"Active","Paused");throw new Exception("conflito ignorado");}catch(IOException){}
+                using(var active=root.OpenSubKey("Active",true)){
+                    Check((string)active.GetValue("Fixture")=="outro comando","conflito preserva entrada nova");
+                    active.DeleteValue("Fixture");
+                }
+                entry.Move(root,"Active","Paused");
+                using(var active=root.OpenSubKey("Active"))Check(StartupEntry.Read(active,"Fixture",false).Command==raw,"restaura comando literal");
+                using(var paused=root.OpenSubKey("Paused"))Check(paused.ValueCount==0,"restauração conclui a transferência");
+            }finally{
+                root.DeleteSubKey("Active",false);root.DeleteSubKey("Paused",false);
+            }
+        }
+        Microsoft.Win32.Registry.CurrentUser.DeleteSubKey(fixture);
+    }
     [STAThread] static void Main(string[] args) {
         string dir=Directory.CreateDirectory(Path.Combine(Path.GetTempPath(),"craft-test-"+Guid.NewGuid())).FullName;
         string temp=Path.Combine(dir,"sample.tmp"), keep=Path.Combine(dir,"recent.tmp"), link=Path.Combine(dir,"missing.lnk");
@@ -48,6 +75,7 @@ class Verification {
             var real=Engine.Scan(Engine.Temp,Engine.Desktop,true,true,CancellationToken.None);
             Console.WriteLine("Leitura local: "+real.Examined+" examinados; "+real.Items.Count+" encontrados; "+real.Skipped+" inacessíveis.");
             Console.WriteLine("Varredura de arquivos concluída em "+clock.ElapsedMilliseconds+" ms.");
+            VerifyStartup();
             var protection=WindowsHealth.Protection();
             Console.WriteLine(protection);
             Check(protection.Length>0,"diagnóstico de proteção");
@@ -70,6 +98,7 @@ class Verification {
                 do{Application.DoEvents();Thread.Sleep(20);}while(scan.Text=="Parar" && DateTime.UtcNow<deadline);
                 Check(Find<Label>(window,null,true)!=null,"verificação pela interface chega ao resumo");
                 Find<Button>(window,"Inicialização").PerformClick();Application.DoEvents();
+                Check(!Find<Button>(window,"Pausar entrada").Enabled,"alteração exige seleção");
                 Check(Find<Button>(window,"Gerenciar nas configurações do Windows")!=null,"leitura da inicialização");
                 Find<Button>(window,"Desempenho").PerformClick();Application.DoEvents();
                 Check(Find<Button>(window,"Atualizar")!=null,"navegação para discos");

@@ -10,7 +10,7 @@ using System.Diagnostics;
 using System.Reflection;
 [assembly: AssemblyTitle("Advanced System Craft")]
 [assembly: AssemblyProduct("Advanced System Craft")]
-[assembly: AssemblyVersion("0.3.0.0")]
+[assembly: AssemblyVersion("0.4.0.0")]
 
 internal sealed class ScanButton : Button {
     public ScanButton() {
@@ -178,7 +178,7 @@ internal sealed partial class CraftWindow : Form {
     }
     void ShowStartup(){
         var p=Page("Programas de inicialização");
-        var entries=new ListView{View=View.Details,FullRowSelect=true,Size=new Size(565,270),BackColor=surface,ForeColor=Color.White};
+        var entries=new ListView{View=View.Details,FullRowSelect=true,MultiSelect=false,HideSelection=false,Size=new Size(565,270),BackColor=surface,ForeColor=Color.White};
         entries.Columns.Add("Programa",170);entries.Columns.Add("Origem",100);entries.Columns.Add("Comando ou arquivo",285);p.Controls.Add(entries);
         int skipped=0;
         foreach(var hive in new[]{Microsoft.Win32.RegistryHive.CurrentUser,Microsoft.Win32.RegistryHive.LocalMachine}){
@@ -188,16 +188,25 @@ internal sealed partial class CraftWindow : Form {
             foreach(var view in views){
                 try{
                     using(var root=Microsoft.Win32.RegistryKey.OpenBaseKey(hive,view))
-                    using(var key=root.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Run")){
+                    using(var key=root.OpenSubKey(StartupEntry.RunPath)){
                         if(key==null)continue;
                         foreach(var name in key.GetValueNames()){
-                            var command=key.GetValue(name) as string;if(String.IsNullOrEmpty(command))continue;
-                            entries.Items.Add(new ListViewItem(new[]{name,hive==Microsoft.Win32.RegistryHive.CurrentUser?"Usuário":"Sistema",command}));
+                            var entry=StartupEntry.Read(key,name,false);if(entry==null)continue;
+                            var user=hive==Microsoft.Win32.RegistryHive.CurrentUser;
+                            entries.Items.Add(new ListViewItem(new[]{name,user?"Usuário":"Sistema",entry.Command}){Tag=user?entry:null});
                         }
                     }
                 }catch(UnauthorizedAccessException){skipped++;}catch(System.Security.SecurityException){skipped++;}
             }
         }
+        try{
+            using(var backup=Microsoft.Win32.Registry.CurrentUser.OpenSubKey(StartupEntry.BackupPath)){
+                if(backup!=null)foreach(var name in backup.GetValueNames()){
+                    var entry=StartupEntry.Read(backup,name,true);
+                    if(entry!=null)entries.Items.Add(new ListViewItem(new[]{name,"Pausado",entry.Command}){Tag=entry});
+                }
+            }
+        }catch(UnauthorizedAccessException){skipped++;}catch(System.Security.SecurityException){skipped++;}
         foreach(var folder in new[]{Environment.SpecialFolder.Startup,Environment.SpecialFolder.CommonStartup}){
             var path=Environment.GetFolderPath(folder);
             if(!Directory.Exists(path))continue;
@@ -206,7 +215,22 @@ internal sealed partial class CraftWindow : Form {
                     entries.Items.Add(new ListViewItem(new[]{Path.GetFileName(file),"Pasta",file}));
             }}catch(IOException){skipped++;}catch(UnauthorizedAccessException){skipped++;}
         }
-        p.Controls.Add(new Label{Text=String.Format("{0} entradas nas chaves Run e pastas de inicialização · {1} origens inacessíveis",entries.Items.Count,skipped),AutoSize=true});
+        p.Controls.Add(new Label{Text=String.Format("{0} entradas listadas (inclui pausadas) · {1} origens inacessíveis",entries.Items.Count,skipped),AutoSize=true});
+        var row=new FlowLayoutPanel{AutoSize=true};p.Controls.Add(row);
+        var toggle=ActionButton(row,"Pausar entrada",(sender,args)=>{
+            if(entries.SelectedItems.Count!=1)return;
+            var item=entries.SelectedItems[0].Tag as StartupEntry;
+            if(item==null)return;
+            try{item.Move(Microsoft.Win32.Registry.CurrentUser,StartupEntry.RunPath,StartupEntry.BackupPath);ShowStartup();}
+            catch(Exception ex){MessageBox.Show(this,ex.Message,Text);}
+        },165);
+        toggle.Enabled=false;
+        entries.SelectedIndexChanged+=(sender,args)=>{
+            var item=entries.SelectedItems.Count==1?entries.SelectedItems[0].Tag as StartupEntry:null;
+            toggle.Enabled=item!=null;
+            toggle.Text=item!=null && item.Paused?"Restaurar entrada":"Pausar entrada";
+        };
+        ActionButton(row,"Atualizar lista",(sender,args)=>ShowStartup(),140);
         var manage=new Button{Size=new Size(280,40)};Style(manage,"Gerenciar nas configurações do Windows");
         manage.Click+=(s,e)=>{try{Process.Start("ms-settings:startupapps");}catch(Exception ex){MessageBox.Show(this,ex.Message,Text);}};
         p.Controls.Add(manage);

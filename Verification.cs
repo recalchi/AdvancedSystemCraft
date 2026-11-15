@@ -79,6 +79,20 @@ class Verification {
         var output = File.ReadAllText(history.LastFile);
         Check(history.Reports().Length == 1 && output.Contains("Diagnóstico de amostra") && output.Contains("Lixeira"), "histórico registra verificação e correção");
     }
+    static void VerifyStartupFolder(string root) {
+        string active = Directory.CreateDirectory(Path.Combine(root, "startup-active")).FullName;
+        string paused = Path.Combine(root, "startup-paused");
+        string source = Path.Combine(active, "fixture.lnk");
+        File.WriteAllText(source, "fixture");
+        var entry = StartupFolderEntry.Active(active, source);
+        entry.PausedRoot = paused;
+        entry.Move();
+        string moved = Path.Combine(paused, "fixture.lnk");
+        Check(!File.Exists(source) && File.Exists(moved), "pausa arquivo da pasta de inicialização do usuário");
+        var restore = StartupFolderEntry.PausedEntry(active, paused, moved);
+        restore.Move();
+        Check(File.Exists(source) && !File.Exists(moved), "restaura arquivo da pasta de inicialização do usuário");
+    }
     [STAThread] static void Main(string[] args) {
         string dir=Directory.CreateDirectory(Path.Combine(Path.GetTempPath(),"craft-test-"+Guid.NewGuid())).FullName;
         string temp=Path.Combine(dir,"sample.tmp"), keep=Path.Combine(dir,"recent.tmp"), link=Path.Combine(dir,"missing.lnk");
@@ -121,6 +135,7 @@ class Verification {
             VerifyPowerPlans();
             RegistryCareVerification.Run();
             VerifyIgnoredAndHistory(dir);
+            VerifyStartupFolder(dir);
             var protection=WindowsHealth.Protection();
             Console.WriteLine(protection);
             Check(protection.Length>0,"diagnóstico de proteção");

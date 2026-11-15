@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: AssemblyCompany("Renan Recalde")]
 [assembly: AssemblyCopyright("Copyright © 2026 Renan Recalde")]
 [assembly: AssemblyDescription("Ferramenta local de manutenção para Windows.")]
-[assembly: AssemblyVersion("0.6.2.0")]
+[assembly: AssemblyVersion("0.6.3.0")]
 
 internal sealed class ScanButton : Button {
     public ScanButton() {
@@ -256,28 +256,40 @@ internal sealed partial class CraftWindow : Form {
                 }
             }
         }catch(UnauthorizedAccessException){skipped++;}catch(System.Security.SecurityException){skipped++;}
+        var userStartup=Environment.GetFolderPath(Environment.SpecialFolder.Startup);
+        var pausedStartup=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"AdvancedSystemCraft","PausedStartupFolder");
         foreach(var folder in new[]{Environment.SpecialFolder.Startup,Environment.SpecialFolder.CommonStartup}){
             var path=Environment.GetFolderPath(folder);
             if(!Directory.Exists(path))continue;
             try{foreach(var file in Directory.GetFiles(path)){
                 if(!Path.GetFileName(file).Equals("desktop.ini",StringComparison.OrdinalIgnoreCase))
-                    entries.Items.Add(new ListViewItem(new[]{Path.GetFileName(file),"Pasta",file}));
+                    entries.Items.Add(new ListViewItem(new[]{Path.GetFileName(file),folder==Environment.SpecialFolder.Startup?"Pasta do usuário":"Pasta comum",file}){Tag=folder==Environment.SpecialFolder.Startup?StartupFolderEntry.Active(userStartup,file):null});
             }}catch(IOException){skipped++;}catch(UnauthorizedAccessException){skipped++;}
         }
+        if(Directory.Exists(pausedStartup))try{foreach(var file in Directory.GetFiles(pausedStartup)){
+            var entry=StartupFolderEntry.PausedEntry(userStartup,pausedStartup,file);
+            if(entry!=null)entries.Items.Add(new ListViewItem(new[]{entry.Name,"Pasta pausada",file}){Tag=entry});
+        }}catch(IOException){skipped++;}catch(UnauthorizedAccessException){skipped++;}
         p.Controls.Add(new Label{Text=String.Format("{0} entradas listadas (inclui pausadas) · {1} origens inacessíveis",entries.Items.Count,skipped),AutoSize=true});
         var row=new FlowLayoutPanel{AutoSize=true};p.Controls.Add(row);
         var toggle=ActionButton(row,"Pausar entrada",(sender,args)=>{
             if(entries.SelectedItems.Count!=1)return;
-            var item=entries.SelectedItems[0].Tag as StartupEntry;
+            var item=entries.SelectedItems[0].Tag;
             if(item==null)return;
-            try{item.Move(Microsoft.Win32.Registry.CurrentUser,StartupEntry.RunPath,StartupEntry.BackupPath);ShowStartup();}
+            try{
+                var value=item as StartupEntry;
+                if(value!=null)value.Move(Microsoft.Win32.Registry.CurrentUser,StartupEntry.RunPath,StartupEntry.BackupPath);
+                else ((StartupFolderEntry)item).Move();
+                ShowStartup();
+            }
             catch(Exception ex){MessageBox.Show(this,ex.Message,Text);}
         },165);
         toggle.Enabled=false;
         entries.SelectedIndexChanged+=(sender,args)=>{
-            var item=entries.SelectedItems.Count==1?entries.SelectedItems[0].Tag as StartupEntry:null;
+            var item=entries.SelectedItems.Count==1?entries.SelectedItems[0].Tag:null;
             toggle.Enabled=item!=null;
-            toggle.Text=item!=null && item.Paused?"Restaurar entrada":"Pausar entrada";
+            var paused=item is StartupEntry ? ((StartupEntry)item).Paused : item is StartupFolderEntry && ((StartupFolderEntry)item).Paused;
+            toggle.Text=paused?"Restaurar entrada":"Pausar entrada";
         };
         ActionButton(row,"Atualizar lista",(sender,args)=>ShowStartup(),140);
         var manage=new Button{Size=new Size(280,40)};Style(manage,"Gerenciar nas configurações do Windows");

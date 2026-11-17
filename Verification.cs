@@ -127,6 +127,25 @@ class Verification {
                 Directory.Delete(cacheDir);Directory.Delete(Path.GetDirectoryName(cacheDir));
                 Directory.Delete(Path.Combine(root,"Default"));Directory.Delete(root);
             }
+            string appCache=Directory.CreateDirectory(Path.Combine(dir,"ApplicationCache")).FullName;
+            string package=Path.Combine(appCache,"extension.vsix");
+            string nested=Directory.CreateDirectory(Path.Combine(appCache,"nested")).FullName;
+            string retained=Path.Combine(nested,"update.json");
+            try {
+                File.WriteAllText(package,"package");File.WriteAllText(retained,"metadata");
+                var applicationReport=new Report();
+                Engine.ScanCacheRoot(applicationReport,appCache,"Cache de aplicativo","craft-fixture-process",CancellationToken.None);
+                Check(applicationReport.Items.Count==2 && applicationReport.Items.All(item=>item.CacheRoot==appCache),"reconhece arquivos do cache de aplicativo");
+                var changed=applicationReport.Items.Single(item=>item.Path==retained);
+                File.AppendAllText(retained,"changed");
+                try{Engine.Correct(changed,dir,dir);throw new Exception("aceitou cache alterado");}catch(IOException){}
+                Check(File.Exists(retained),"revalida o cache de aplicativo antes de corrigir");
+                Engine.Correct(applicationReport.Items.Single(item=>item.Path==package),dir,dir);
+                Check(!File.Exists(package) && File.Exists(retained),"corrige somente o arquivo de cache selecionado");
+            } finally {
+                if(File.Exists(package))File.Delete(package);if(File.Exists(retained))File.Delete(retained);
+                Directory.Delete(nested);Directory.Delete(appCache);
+            }
             var clock=System.Diagnostics.Stopwatch.StartNew();
             var real=Engine.Scan(Engine.Temp,Engine.Desktop,true,true,CancellationToken.None);
             Console.WriteLine("Leitura local: "+real.Examined+" examinados; "+real.Items.Count+" encontrados; "+real.Skipped+" inacessíveis.");
@@ -146,10 +165,13 @@ class Verification {
             using(var window=new CraftWindow()){
                 window.Show();Application.DoEvents();
                 var privacy=Find<CheckBox>(window,"Cache de código do Chrome e do Edge");
+                var vsCodeCache=Find<CheckBox>(window,"Cache VS Code (VSIX)");
+                var ollamaCache=Find<CheckBox>(window,"Cache de atualização do Ollama");
+                Check(vsCodeCache!=null && ollamaCache!=null && !vsCodeCache.Checked && !ollamaCache.Checked,"caches de aplicativo exigem seleção manual");
                 privacy.Checked=true;Find<RadioButton>(window,"Recomendado").Checked=true;Application.DoEvents();
                 Check(!privacy.Visible,"modo recomendado selecionável");
                 Find<RadioButton>(window,"Manual").Checked=true;Application.DoEvents();
-                Check(privacy.Visible && privacy.Checked,"escolhas manuais preservadas");
+                Check(privacy.Visible && privacy.Checked && vsCodeCache.Visible && ollamaCache.Visible,"escolhas manuais preservadas");
                 privacy.Checked=false;
                 Check(CraftWindow.IncludeCache(9,100) && !CraftWindow.IncludeCache(10,100) && !CraftWindow.IncludeCache(0,0),"limiar de espaço no recomendado");
                 Find<RadioButton>(window,"Recomendado").Checked=true;

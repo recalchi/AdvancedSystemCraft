@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: AssemblyCompany("Renan Recalde")]
 [assembly: AssemblyCopyright("Copyright © 2026 Renan Recalde")]
 [assembly: AssemblyDescription("Ferramenta local de manutenção para Windows.")]
-[assembly: AssemblyVersion("0.6.4.0")]
+[assembly: AssemblyVersion("0.6.5.0")]
 
 internal sealed class ScanButton : Button {
     public ScanButton() {
@@ -37,7 +37,7 @@ internal sealed partial class CraftWindow : Form {
     readonly FlowLayoutPanel menu=new FlowLayoutPanel();
     readonly Panel body=new Panel();
     readonly Panel care=new Panel();
-    readonly CheckBox junk=new CheckBox(), shortcuts=new CheckBox(), protection=new CheckBox(), hardware=new CheckBox(), privacy=new CheckBox(), volumes=new CheckBox();
+    readonly CheckBox junk=new CheckBox(), shortcuts=new CheckBox(), protection=new CheckBox(), hardware=new CheckBox(), privacy=new CheckBox(), volumes=new CheckBox(), vsCodeCache=new CheckBox(), ollamaCache=new CheckBox();
     readonly RadioButton recommended=new RadioButton{Text="Recomendado",AutoSize=true};
     readonly RadioButton manual=new RadioButton{Text="Manual",AutoSize=true,Checked=true};
     readonly Button again=new Button();
@@ -46,7 +46,7 @@ internal sealed partial class CraftWindow : Form {
     readonly Label careHeading=new Label();
     void ResultsMode(bool reviewing){
         options.Visible=!reviewing;
-        careLayout.RowStyles[1].Height=reviewing?0:215;
+        careLayout.RowStyles[1].Height=reviewing?0:270;
         careHeading.Text=reviewing?"Resultado":"Cuidado";
         again.Visible=reviewing;recommended.Visible=manual.Visible=!reviewing;
     }
@@ -74,7 +74,7 @@ internal sealed partial class CraftWindow : Form {
         body.Dock=DockStyle.Fill; Controls.Add(body); Controls.Add(menu);
         care.Dock=DockStyle.Fill; care.Padding=new Padding(22);
         var layout=careLayout;layout.Dock=DockStyle.Fill;layout.ColumnCount=1;layout.RowCount=4;
-        layout.RowStyles.Add(new RowStyle(SizeType.Absolute,54)); layout.RowStyles.Add(new RowStyle(SizeType.Absolute,215));
+        layout.RowStyles.Add(new RowStyle(SizeType.Absolute,54)); layout.RowStyles.Add(new RowStyle(SizeType.Absolute,270));
         layout.RowStyles.Add(new RowStyle(SizeType.Percent,100)); layout.RowStyles.Add(new RowStyle(SizeType.Absolute,91));
                 var heading=new FlowLayoutPanel{Dock=DockStyle.Fill,WrapContents=false};
         careHeading.Text="Cuidado";careHeading.AutoSize=true;careHeading.Font=new Font(Font.FontFamily,18,FontStyle.Bold);careHeading.Margin=new Padding(0,0,18,0);heading.Controls.Add(careHeading);
@@ -88,15 +88,17 @@ internal sealed partial class CraftWindow : Form {
         options.Dock=DockStyle.Fill;options.WrapContents=false;
         scan.Font=new Font(Font.FontFamily,16,FontStyle.Bold); scan.Click+=async (s,e)=>await RunScan();
         options.Controls.Add(scan);
-        var checks=new FlowLayoutPanel {FlowDirection=FlowDirection.TopDown,Padding=new Padding(15,2,0,0),Size=new Size(420,208)};
+        var checks=new FlowLayoutPanel {FlowDirection=FlowDirection.TopDown,Padding=new Padding(15,2,0,0),Size=new Size(420,263)};
         SetupCheck(checks,junk,"Temporários .tmp com mais de 7 dias"); SetupCheck(checks,shortcuts,"Atalhos inválidos da Área de Trabalho");
         SetupCheck(checks,protection,"Proteção antivírus e firewall");
         SetupCheck(checks,hardware,"Saúde dos discos físicos");
         SetupCheck(checks,privacy,"Cache de código do Chrome e do Edge"); privacy.Checked=false;
         SetupCheck(checks,volumes,"Verificação pendente nos volumes");
+        SetupCheck(checks,vsCodeCache,"Cache VS Code (VSIX)"); vsCodeCache.Checked=false;
+        SetupCheck(checks,ollamaCache,"Cache de atualização do Ollama"); ollamaCache.Checked=false;
         var selectAll=new Button{Text="Selecionar tudo",AutoSize=true};
         Style(selectAll,"Selecionar tudo");
-        selectAll.Click+=(s,e)=>{if(operation==null && !repairing)junk.Checked=shortcuts.Checked=protection.Checked=hardware.Checked=volumes.Checked=privacy.Checked=true;};
+        selectAll.Click+=(s,e)=>{if(operation==null && !repairing)junk.Checked=shortcuts.Checked=protection.Checked=hardware.Checked=volumes.Checked=privacy.Checked=vsCodeCache.Checked=ollamaCache.Checked=true;};
         checks.Controls.Add(selectAll);
                 var explanation=new Label{MaximumSize=new Size(365,0),AutoSize=true,Visible=false,
             Text="Verifica temporários, atalhos, proteção e discos. Inclui o cache de código quando a unidade do perfil tem menos de 10% de espaço disponível."};
@@ -154,13 +156,13 @@ internal sealed partial class CraftWindow : Form {
     void UpdateFix(){fix.Enabled=operation==null && !repairing && list.CheckedItems.Count>0;ignore.Visible=mark.Visible=list.Visible && list.Items.Count>0;ignore.Enabled=fix.Enabled;mark.Enabled=operation==null && !repairing;mark.Text=list.CheckedItems.Count==list.Items.Count?"Desmarcar todos":"Marcar todos";}
     async Task RunScan() {
         if(operation!=null){operation.Cancel();return;}
-        if(!recommended.Checked && !junk.Checked && !shortcuts.Checked && !protection.Checked && !hardware.Checked && !privacy.Checked && !volumes.Checked){status.Text="Selecione ao menos uma categoria.";return;}
-        bool files=junk.Checked,links=shortcuts.Checked, security=protection.Checked, disks=hardware.Checked, browsers=privacy.Checked, examineVolumes=volumes.Checked;
+        if(!recommended.Checked && !junk.Checked && !shortcuts.Checked && !protection.Checked && !hardware.Checked && !privacy.Checked && !volumes.Checked && !vsCodeCache.Checked && !ollamaCache.Checked){status.Text="Selecione ao menos uma categoria.";return;}
+        bool files=junk.Checked,links=shortcuts.Checked, security=protection.Checked, disks=hardware.Checked, browsers=privacy.Checked, examineVolumes=volumes.Checked, includeVsCode=vsCodeCache.Checked, includeOllama=ollamaCache.Checked;
         bool automatic=recommended.Checked;
-        if(automatic){files=links=security=disks=examineVolumes=true; browsers=false;}
+        if(automatic){files=links=security=disks=examineVolumes=true; browsers=false;includeVsCode=includeOllama=false;}
         manual.Enabled=recommended.Enabled=false;
         operation=new CancellationTokenSource();var token=operation.Token;
-        review.Text="Examinando as categorias selecionadas…"; mark.Visible=false; list.Visible=false; list.Items.Clear(); fix.Enabled=false; diagnostic.Visible=false; junk.Enabled=shortcuts.Enabled=hardware.Enabled=volumes.Enabled=privacy.Enabled=protection.Enabled=false; scan.Text="Parar"; status.Text="Verificando arquivos locais…";
+        review.Text="Examinando as categorias selecionadas…"; mark.Visible=false; list.Visible=false; list.Items.Clear(); fix.Enabled=false; diagnostic.Visible=false; junk.Enabled=shortcuts.Enabled=hardware.Enabled=volumes.Enabled=privacy.Enabled=protection.Enabled=vsCodeCache.Enabled=ollamaCache.Enabled=false; scan.Text="Parar"; status.Text="Verificando arquivos locais…";
         try {
             var timer=Stopwatch.StartNew(); var report=await Task.Run(()=>{var findings=Engine.Scan(Engine.Temp,Engine.Desktop,files,links,token);if(automatic){
                 try{
@@ -172,6 +174,7 @@ internal sealed partial class CraftWindow : Form {
                  catch(UnauthorizedAccessException){findings.Notices.Add("Acesso à capacidade indisponível; cache preservado.");}
             }
             if(browsers)Engine.ScanBrowserCaches(findings,token);
+            if(includeVsCode || includeOllama)Engine.ScanApplicationCaches(findings,includeVsCode,includeOllama,token);
             var exclusions=ignored.Load();int hidden=findings.Items.RemoveAll(item=>exclusions.Contains(item.Path));
             if(hidden>0)findings.Notices.Add(hidden+" arquivo(s) ignorado(s) por escolha do usuário.");
             return findings;});
@@ -203,7 +206,7 @@ internal sealed partial class CraftWindow : Form {
             try{history.SaveScan(automatic?"recomendado":"manual",report,details,timer.ElapsedMilliseconds);}catch(Exception logError){status.Text+=" · Falha no histórico: "+logError.Message;}
         } catch(OperationCanceledException){if(!IsDisposed){review.Text="Verificação cancelada.";status.Text="Clique em Verificar para começar novamente.";};}
           catch(Exception ex){if(!IsDisposed){review.Text="Não foi possível concluir a verificação.";status.Text=ex.Message;};}
-        finally {operation.Dispose();operation=null;if(!IsDisposed){manual.Enabled=recommended.Enabled=true;junk.Enabled=shortcuts.Enabled=hardware.Enabled=volumes.Enabled=privacy.Enabled=protection.Enabled=true; scan.Text="Verificar";UpdateFix();}}
+        finally {operation.Dispose();operation=null;if(!IsDisposed){manual.Enabled=recommended.Enabled=true;junk.Enabled=shortcuts.Enabled=hardware.Enabled=volumes.Enabled=privacy.Enabled=protection.Enabled=vsCodeCache.Enabled=ollamaCache.Enabled=true; scan.Text="Verificar";UpdateFix();}}
     }
     async Task Repair(){
         var selected=list.CheckedItems.Cast<ListViewItem>().ToArray();

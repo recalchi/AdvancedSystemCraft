@@ -4,9 +4,9 @@ Este roadmap organiza as atualizações do Advanced System Craft até a primeira
 
 ## Situação atual
 
-**Versão funcional mais recente:** 0.6.4.
+**Versão funcional mais recente:** 0.6.5.
 
-O Craft já cobre revisão e correção reversível de arquivos selecionados, atualizações via WinGet, diagnósticos de proteção, inicialização, monitoramento de recursos, planos de energia, manutenção de discos delegada ao Windows e histórico local. A matriz detalhada está em [cobertura.md](cobertura.md).
+O Craft já cobre revisão e correção reversível de arquivos selecionados, incluindo caches específicos de VS Code e Ollama sob escolha manual, atualizações via WinGet, diagnósticos de proteção, inicialização, monitoramento de recursos, planos de energia, manutenção de discos delegada ao Windows e histórico local. A matriz detalhada está em [cobertura.md](cobertura.md).
 
 ## Marcos
 

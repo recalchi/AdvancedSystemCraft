@@ -11,6 +11,7 @@ using Microsoft.VisualBasic.FileIO;
 internal sealed class Finding {
     public string Path, Category, Target;
     public string BrowserRoot; internal string BrowserProcess;
+    public string CacheRoot; internal string CacheProcess;
     public long Size;
     public DateTime Modified;
 }
@@ -153,7 +154,48 @@ internal static class Engine {
         ScanCache(report,Path.Combine(local,@"Google\Chrome\User Data"),"chrome",token);
         ScanCache(report,Path.Combine(local,@"Microsoft\Edge\User Data"),"msedge",token);
     }
+    static bool IsWithin(FileInfo file,string root) {
+        if(file==null || String.IsNullOrEmpty(root))return false;
+        var parent=file.Directory;
+        while(parent!=null){
+            if(IsLink(parent))return false;
+            if(String.Equals(parent.FullName.TrimEnd(Path.DirectorySeparatorChar),root.TrimEnd(Path.DirectorySeparatorChar),StringComparison.OrdinalIgnoreCase))return true;
+            parent=parent.Parent;
+        }
+        return false;
+    }
+    internal static void ScanCacheRoot(Report report,string root,string category,string process,CancellationToken token) {
+        if(BrowserOpen(process)){report.Notices.Add(process+" aberto — "+category+" ignorado");return;}
+        try {
+            var baseDir=new DirectoryInfo(root);
+            if(!baseDir.Exists)return;
+            if(!LocalPath(baseDir.FullName) || IsLink(baseDir)){report.Skipped++;return;}
+            var pending=new Stack<DirectoryInfo>();pending.Push(baseDir);
+            while(pending.Count>0){
+                token.ThrowIfCancellationRequested();var dir=pending.Pop();
+                if(IsLink(dir)){report.Skipped++;continue;}
+                try {
+                    foreach(var file in dir.EnumerateFiles()){
+                        token.ThrowIfCancellationRequested();report.Examined++;
+                        if(!IsLink(file))report.Items.Add(new Finding {Path=file.FullName,Category=category,Size=file.Length,Modified=file.LastWriteTimeUtc,CacheRoot=root,CacheProcess=process});
+                    }
+                    foreach(var child in dir.EnumerateDirectories()){token.ThrowIfCancellationRequested();pending.Push(child);}
+                }catch(Exception ex){if(!Expected(ex))throw;report.Skipped++;}
+            }
+        }catch(Exception ex){if(!Expected(ex))throw;report.Skipped++;}
+    }
+    internal static void ScanApplicationCaches(Report report,bool vsCode,bool ollama,CancellationToken token){
+        if(vsCode)ScanCacheRoot(report,Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),@"Code\CachedExtensionVSIXs"),"Cache VS Code (VSIX)","Code",token);
+        if(ollama)ScanCacheRoot(report,Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),@"Ollama\updates_v2"),"Cache de atualização do Ollama","ollama",token);
+    }
     public static void Correct(Finding item, string temp, string desktop) {
+        if(item.CacheRoot!=null){
+            var cache=new FileInfo(item.Path);
+            if(BrowserOpen(item.CacheProcess) || !IsWithin(cache,item.CacheRoot) || IsLink(cache) || cache.Length!=item.Size || cache.LastWriteTimeUtc!=item.Modified)
+                throw new IOException("O aplicativo está aberto ou o arquivo de cache mudou. Verifique novamente.");
+            FileSystem.DeleteFile(cache.FullName, UIOption.OnlyErrorDialogs, RecycleOption.SendToRecycleBin, UICancelOption.ThrowException);
+            return;
+        }
         if(item.BrowserRoot!=null){
             var cache=new FileInfo(item.Path);
             if(BrowserOpen(item.BrowserProcess) || !CacheEntry(cache.Name) || !CacheLocation(cache,item.BrowserRoot) ||

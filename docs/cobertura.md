@@ -4,11 +4,11 @@ Referência local em 14 de novembro de 2026: ASC.exe informa a versão 19.4.0.21
 
 ## Cuidado e correção
 
-A coluna Craft descreve a implementação examinada durante o desenvolvimento da 0.6.1. A segunda coluna combina as telas e os recursos da instalação com a descrição do fabricante. [Manual da IObit](https://www.iobit.com/product-manuals/asc-help/) · [Ficha da série 19, versão 19.0.1.158](https://download.iobit.com/mediaresource/materials/asc19.pdf)
+A coluna Craft descreve a implementação examinada durante o desenvolvimento da 0.6.5. A segunda coluna combina as telas e os recursos da instalação com a descrição do fabricante. [Manual da IObit](https://www.iobit.com/product-manuals/asc-help/) · [Ficha da série 19, versão 19.0.1.158](https://download.iobit.com/mediaresource/materials/asc19.pdf)
 
 | Categorias do modo manual | Resultado esperado no original | Cobertura no Craft |
 | --- | --- | --- |
-| Privacidade, arquivos inúteis, atalhos | Identificar itens por categoria, revisar e corrigir os selecionados. | Parcial. Cache de código de Chrome e Edge fechados, temporários antigos e atalhos da Área de Trabalho com destino local ausente. Revisão e envio à Lixeira. |
+| Privacidade, arquivos inúteis, atalhos | Identificar itens por categoria, revisar e corrigir os selecionados. | Parcial. Cache de código de Chrome e Edge fechados, cache de extensões do VS Code fechado, cache de atualização do Ollama fechado, temporários antigos e atalhos da Área de Trabalho com destino local ausente. Revisão, revalidação e envio à Lixeira. |
 | Registro e desfragmentação do registro | Localizar entradas elegíveis ou compactar o registro. | Pendente. A pausa reversível de uma entrada de inicialização é uma operação específica. |
 | Otimizar sistema e Internet | Recomendar e aplicar ajustes conforme as configurações encontradas. | Pendente. Falta comparação das recomendações, mudanças e restauração. |
 | Otimização de disco e verificação de disco | Otimização de HDD/SSD e diagnóstico com correção de erros de volume. | Parcial. O Craft solicita ao CHKDSK verificar ou reparar e ao Windows analisar ou otimizar a unidade. A equivalência do diagnóstico e das recomendações do ASC continua em aberto. |

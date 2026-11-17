@@ -1,7 +1,7 @@
 param([switch]$Verification)
 $ErrorActionPreference = 'Stop'
 $compiler = Join-Path $env:WINDIR 'Microsoft.NET/Framework64/v4.0.30319/csc.exe'
-$out = Join-Path $PSScriptRoot 'build/v0.6.4'
+$out = Join-Path $PSScriptRoot 'build/v0.6.5'
 New-Item -ItemType Directory -Force -Path $out | Out-Null
 $sources = @(Get-ChildItem -LiteralPath $PSScriptRoot -Filter '*.cs' -File |
     Where-Object { $Verification -or $_.Name -ne 'Verification.cs' } |
